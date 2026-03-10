@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NATOS - AI ECU Tuning System</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #00ff88;
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            letter-spacing: 3px;
+        }
+        
+        .header .subtitle {
+            color: #ff4444;
+            font-size: 0.9em;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        
+        .warning-banner {
+            background: #ff4444;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+        
+        .control-card:hover {
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            transform: translateY(-5px);
+        }
+        
+        .control-card h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+        
+        .btn-start:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .btn-mode {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-mode:hover, .btn-mode.active {
+            background: #00ff88;
+            color: #000;
+            border-color: #00ff88;
+        }
+        
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .telemetry-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .telemetry-card.warning {
+            border-color: #ffaa00;
+            animation: warning-pulse 1s infinite;
+        }
+        
+        .telemetry-card.critical {
+            border-color: #ff4444;
+            background: rgba(255, 68, 68, 0.2);
+            animation: critical-pulse 0.5s infinite;
+        }
+        
+        @keyframes warning-pulse {
+            0%, 100% { border-color: #ffaa00; }
+            50% { border-color: #ff6600; }
+        }
+        
+        @keyframes critical-pulse {
+            0%, 100% { 
+                border-color: #ff4444;
+                box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+            }
+            50% { 
+                border-color: #ff0000;
+                box-shadow: 0 0 40px rgba(255, 0, 0, 0.8);
+            }
+        }
+        
+        .telemetry-label {
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .telemetry-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00ff88;
+            margin: 10px 0;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+        
+        .telemetry-unit {
+            font-size: 0.8em;
+            color: #aaa;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+        }
+        
+        .chart-card h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+        
+        .alerts-container {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 68, 68, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .alert {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .alert-warning {
+            background: rgba(255, 170, 0, 0.2);
+            border-left: 4px solid #ffaa00;
+            color: #ffaa00;
+        }
+        
+        .alert-critical {
+            background: rgba(255, 68, 68, 0.2);
+            border-left: 4px solid #ff4444;
+            color: #ff4444;
+            animation: shake 0.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: blink 1s infinite;
+        }
+        
+        .status-off { background: #666; animation: none; }
+        .status-on { background: #00ff88; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .tune-info {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .tune-info h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+        
+        .tune-param {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+        }
+        
+        .tune-param-label {
+            color: #aaa;
+        }
+        
+        .tune-param-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏎️ NATOS</h1>
+        <p style="color: #00ff88; font-size: 1.2em;">AI-Powered ECU Tuning & Telemetry System</p>
+        <p class="subtitle">⚠️ SIMULATION MODE - FOR EDUCATIONAL PURPOSES ONLY ⚠️</p>
+    </div>
+    
+    <div class="warning-banner" id="criticalBanner" style="display: none;">
+        ⚠️ CRITICAL WARNING - CHECK ALERTS BELOW ⚠️
+    </div>
+    
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-card">
+                <h3>🔧 Engine Control</h3>
+                <div style="margin-bottom: 15px;">
+                    <span class="status-indicator status-off" id="engineStatus"></span>
+                    <span id="engineStatusText">Engine: OFF</span>
+                </div>
+                <button class="btn btn-start" onclick="startEngine()">Start Engine</button>
+                <button class="btn btn-stop" onclick="stopEngine()">Stop Engine</button>
+            </div>
+            
+            <div class="control-card">
+                <h3>🎯 Tuning Mode</h3>
+                <button class="btn btn-mode active" onclick="setMode('stock')" id="mode-stock">Stock</button>
+                <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
+                <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
+                <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+            </div>
+            
+            <div class="control-card">
+                <h3>🤖 AI Tuning Agent</h3>
+                <button class="btn btn-mode" onclick="openAITuner()">Launch AI Tuner</button>
+                <button class="btn btn-mode" onclick="researchEngine()">Research Engine</button>
+                <button class="btn btn-mode" onclick="optimizeTune()">Optimize Tune</button>
+            </div>
+        </div>
+        
+        <!-- Current Tune Info -->
+        <div class="tune-info">
+            <h3>📋 Current Tune Parameters</h3>
+            <div class="tune-param">
+                <span class="tune-param-label">Mode:</span>
+                <span class="tune-param-value" id="tune-mode">STOCK</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Fuel Map Adjustment:</span>
+                <span class="tune-param-value" id="tune-fuel">0%</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Timing Adjustment:</span>
+                <span class="tune-param-value" id="tune-timing">0°</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Boost Target:</span>
+                <span class="tune-param-value" id="tune-boost">12 PSI</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">AFR Target:</span>
+                <span class="tune-param-value" id="tune-afr">14.7</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Rev Limit:</span>
+                <span class="tune-param-value" id="tune-revlimit">7000 RPM</span>
+            </div>
+        </div>
+        
+        <!-- Alerts -->
+        <div class="alerts-container" id="alertsContainer">
+            <h3 style="color: #ff4444; margin-bottom: 10px;">⚠️ Safety Alerts</h3>
+            <div id="alertsList">
+                <p style="color: #00ff88;">System nominal - No alerts</p>
+            </div>
+        </div>
+        
+        <!-- Primary Telemetry -->
+        <div class="telemetry-grid">
+            <div class="telemetry-card" id="card-rpm">
+                <div class="telemetry-label">RPM</div>
+                <div class="telemetry-value" id="rpm">0</div>
+                <div class="telemetry-unit">Engine Speed</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-speed">
+                <div class="telemetry-label">Speed</div>
+                <div class="telemetry-value" id="speed">0</div>
+                <div class="telemetry-unit">MPH</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-boost">
+                <div class="telemetry-label">Boost</div>
+                <div class="telemetry-value" id="boost">0.0</div>
+                <div class="telemetry-unit">PSI</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-afr">
+                <div class="telemetry-label">AFR</div>
+                <div class="telemetry-value" id="afr">14.7</div>
+                <div class="telemetry-unit">Air/Fuel Ratio</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-throttle">
+                <div class="telemetry-label">Throttle</div>
+                <div class="telemetry-value" id="throttle">0</div>
+                <div class="telemetry-unit">%</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-gear">
+                <div class="telemetry-label">Gear</div>
+                <div class="telemetry-value" id="gear">N</div>
+                <div class="telemetry-unit">Current Gear</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-ect">
+                <div class="telemetry-label">Coolant Temp</div>
+                <div class="telemetry-value" id="ect">0</div>
+                <div class="telemetry-unit">°F</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-oil-temp">
+                <div class="telemetry-label">Oil Temp</div>
+                <div class="telemetry-value" id="oil-temp">0</div>
+                <div class="telemetry-unit">°F</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-oil-pressure">
+                <div class="telemetry-label">Oil Pressure</div>
+                <div class="telemetry-value" id="oil-pressure">0</div>
+                <div class="telemetry-unit">PSI</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-iat">
+                <div class="telemetry-label">Intake Temp</div>
+                <div class="telemetry-value" id="iat">0</div>
+                <div class="telemetry-unit">°F</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-egt">
+                <div class="telemetry-label">Exhaust Temp</div>
+                <div class="telemetry-value" id="egt">0</div>
+                <div class="telemetry-unit">°F</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-timing">
+                <div class="telemetry-label">Ignition Timing</div>
+                <div class="telemetry-value" id="timing">0</div>
+                <div class="telemetry-unit">° BTDC</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-injector">
+                <div class="telemetry-label">Injector Duty</div>
+                <div class="telemetry-value" id="injector">0</div>
+                <div class="telemetry-unit">%</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-knock">
+                <div class="telemetry-label">Knock Count</div>
+                <div class="telemetry-value" id="knock">0</div>
+                <div class="telemetry-unit">Detections</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-lambda">
+                <div class="telemetry-label">Lambda</div>
+                <div class="telemetry-value" id="lambda">1.0</div>
+                <div class="telemetry-unit">λ</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-voltage">
+                <div class="telemetry-label">Battery</div>
+                <div class="telemetry-value" id="voltage">14.2</div>
+                <div class="telemetry-unit">Volts</div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3>📈 RPM & Boost History</h3>
+                <canvas id="rpmBoostChart"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <h3>🔥 Temperature Monitor</h3>
+                <canvas id="tempChart"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <h3>⛽ AFR & Lambda</h3>
+                <canvas id="afrChart"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <h3>⚡ Power Parameters</h3>
+                <canvas id="powerChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const socket = io();
+        
+        // Chart data storage
+        const maxDataPoints = 50;
+        const chartData = {
+            labels: [],
+            rpm: [],
+            boost: [],
+            ect: [],
+            oilTemp: [],
+            egt: [],
+            iat: [],
+            afr: [],
+            lambda: [],
+            timing: [],
+            throttle: []
+        };
+        
+        // Initialize charts
+        const rpmBoostChart = new Chart(document.getElementById('rpmBoostChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'RPM',
+                    data: chartData.rpm,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'Boost (PSI)',
+                    data: chartData.boost,
+                    borderColor: '#ff6600',
+                    backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                    yAxisID: 'y1',
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'RPM', color: '#00ff88' }, ticks: { color: '#00ff88' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Boost (PSI)', color: '#ff6600' }, ticks: { color: '#ff6600' }, grid: { drawOnChartArea: false } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
+        
+        const tempChart = new Chart(document.getElementById('tempChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Coolant (°F)',
+                    data: chartData.ect,
+                    borderColor: '#00aaff',
+                    backgroundColor: 'rgba(0, 170, 255, 0.1)',
+                }, {
+                    label: 'Oil (°F)',
+                    data: chartData.oilTemp,
+                    borderColor: '#ffaa00',
+                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                }, {
+                    label: 'Exhaust (°F)',
+                    data: chartData.egt,
+                    borderColor: '#ff4444',
+                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: '#fff' } } },
+                scales: { y: { ticks: { color: '#fff' } } }
+            }
+        });
+        
+        const afrChart = new Chart(document.getElementById('afrChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'AFR',
+                    data: chartData.afr,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'Lambda',
+                    data: chartData.lambda,
+                    borderColor: '#aa88ff',
+                    backgroundColor: 'rgba(170, 136, 255, 0.1)',
+                    yAxisID: 'y1',
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'AFR', color: '#00ff88' }, ticks: { color: '#00ff88' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Lambda', color: '#aa88ff' }, ticks: { color: '#aa88ff' }, grid: { drawOnChartArea: false } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
+        
+        const powerChart = new Chart(document.getElementById('powerChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Throttle (%)',
+                    data: chartData.throttle,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                }, {
+                    label: 'Timing (°)',
+                    data: chartData.timing,
+                    borderColor: '#ff6600',
+                    backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: '#fff' } } },
+                scales: { y: { ticks: { color: '#fff' } } }
+            }
+        });
+        
+        // Socket event handlers
+        socket.on('telemetry_update', function(data) {
+            updateTelemetry(data.telemetry);
+            updateTuneInfo(data.tune);
+            updateSafetyAlerts(data.safety);
+            updateCharts(data.telemetry);
+        });
+        
+        function updateTelemetry(telemetry) {
+            document.getElementById('rpm').textContent = Math.round(telemetry.rpm);
+            document.getElementById('speed').textContent = Math.round(telemetry.speed);
+            document.getElementById('boost').textContent = telemetry.boost.toFixed(1);
+            document.getElementById('afr').textContent = telemetry.afr.toFixed(1);
+            document.getElementById('throttle').textContent = Math.round(telemetry.throttle_position);
+            document.getElementById('gear').textContent = telemetry.gear === 0 ? 'N' : telemetry.gear;
+            document.getElementById('ect').textContent = Math.round(telemetry.ect);
+            document.getElementById('oil-temp').textContent = Math.round(telemetry.oil_temp);
+            document.getElementById('oil-pressure').textContent = Math.round(telemetry.oil_pressure);
+            document.getElementById('iat').textContent = Math.round(telemetry.iat);
+            document.getElementById('egt').textContent = Math.round(telemetry.egt);
+            document.getElementById('timing').textContent = telemetry.ignition_timing.toFixed(1);
+            document.getElementById('injector').textContent = Math.round(telemetry.injector_duty);
+            document.getElementById('knock').textContent = telemetry.knock_count;
+            document.getElementById('lambda').textContent = telemetry.lambda.toFixed(2);
+            document.getElementById('voltage').textContent = telemetry.voltage.toFixed(1);
+            
+            // Update warning states
+            updateCardWarnings(telemetry);
+        }
+        
+        function updateCardWarnings(telemetry) {
+            // Reset all cards
+            document.querySelectorAll('.telemetry-card').forEach(card => {
+                card.classList.remove('warning', 'critical');
+            });
+            
+            // Check for warnings
+            if (telemetry.ect > 220) document.getElementById('card-ect').classList.add('warning');
+            if (telemetry.ect > 230) document.getElementById('card-ect').classList.add('critical');
+            
+            if (telemetry.oil_temp > 260) document.getElementById('card-oil-temp').classList.add('warning');
+            if (telemetry.oil_temp > 280) document.getElementById('card-oil-temp').classList.add('critical');
+            
+            if (telemetry.egt > 1400) document.getElementById('card-egt').classList.add('warning');
+            if (telemetry.egt > 1600) document.getElementById('card-egt').classList.add('critical');
+            
+            if (telemetry.knock_count > 3) document.getElementById('card-knock').classList.add('warning');
+            if (telemetry.knock_count > 5) document.getElementById('card-knock').classList.add('critical');
+            
+            if (telemetry.afr < 11.0) document.getElementById('card-afr').classList.add('warning');
+            if (telemetry.afr < 10.5) document.getElementById('card-afr').classList.add('critical');
+        }
+        
+        function updateTuneInfo(tune) {
+            document.getElementById('tune-mode').textContent = tune.mode.toUpperCase();
+            document.getElementById('tune-fuel').textContent = tune.fuel_map_adjustment + '%';
+            document.getElementById('tune-timing').textContent = tune.timing_adjustment + '°';
+            document.getElementById('tune-boost').textContent = tune.boost_target + ' PSI';
+            document.getElementById('tune-afr').textContent = tune.afr_target.toFixed(1);
+            document.getElementById('tune-revlimit').textContent = tune.rev_limit + ' RPM';
+        }
+        
+        function updateSafetyAlerts(safety) {
+            const alertsList = document.getElementById('alertsList');
+            const criticalBanner = document.getElementById('criticalBanner');
+            
+            if (safety.warnings.length === 0 && safety.critical.length === 0) {
+                alertsList.innerHTML = '<p style="color: #00ff88;">✅ System nominal - No alerts</p>';
+                criticalBanner.style.display = 'none';
+            } else {
+                let html = '';
+                
+                safety.critical.forEach(alert => {
+                    html += `<div class="alert alert-critical">🚨 ${alert}</div>`;
+                });
+                
+                safety.warnings.forEach(alert => {
+                    html += `<div class="alert alert-warning">⚠️ ${alert}</div>`;
+                });
+                
+                alertsList.innerHTML = html;
+                
+                if (safety.critical.length > 0) {
+                    criticalBanner.style.display = 'block';
+                } else {
+                    criticalBanner.style.display = 'none';
+                }
+            }
+        }
+        
+        function updateCharts(telemetry) {
+            const now = new Date().toLocaleTimeString();
+            
+            chartData.labels.push(now);
+            chartData.rpm.push(telemetry.rpm);
+            chartData.boost.push(telemetry.boost);
+            chartData.ect.push(telemetry.ect);
+            chartData.oilTemp.push(telemetry.oil_temp);
+            chartData.egt.push(telemetry.egt);
+            chartData.iat.push(telemetry.iat);
+            chartData.afr.push(telemetry.afr);
+            chartData.lambda.push(telemetry.lambda);
+            chartData.timing.push(telemetry.ignition_timing);
+            chartData.throttle.push(telemetry.throttle_position);
+            
+            // Keep only last N points
+            if (chartData.labels.length > maxDataPoints) {
+                chartData.labels.shift();
+                chartData.rpm.shift();
+                chartData.boost.shift();
+                chartData.ect.shift();
+                chartData.oilTemp.shift();
+                chartData.egt.shift();
+                chartData.iat.shift();
+                chartData.afr.shift();
+                chartData.lambda.shift();
+                chartData.timing.shift();
+                chartData.throttle.shift();
+            }
+            
+            rpmBoostChart.update('none');
+            tempChart.update('none');
+            afrChart.update('none');
+            powerChart.update('none');
+        }
+        
+        // Control functions
+        async function startEngine() {
+            const response = await fetch('/api/engine/start', { method: 'POST' });
+            const data = await response.json();
+            document.getElementById('engineStatus').className = 'status-indicator status-on';
+            document.getElementById('engineStatusText').textContent = 'Engine: RUNNING';
+        }
+        
+        async function stopEngine() {
+            const response = await fetch('/api/engine/stop', { method: 'POST' });
+            document.getElementById('engineStatus').className = 'status-indicator status-off';
+            document.getElementById('engineStatusText').textContent = 'Engine: OFF';
+        }
+        
+        async function setMode(mode) {
+            // Show warning for modified mode
+            if (mode === 'modified' || mode === 'performance') {
+                if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            }
+            
+            const response = await fetch('/api/tune/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: mode })
+            });
+            
+            // Update button states
+            document.querySelectorAll('.btn-mode').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById('mode-' + mode).classList.add('active');
+        }
+        
+        function openAITuner() {
+            alert('🤖 AI Tuning Agent\n\nThis feature would connect to an AI agent that:\n• Researches your specific engine online\n• Analyzes your driving patterns\n• Suggests optimal tune parameters\n• Learns from professional tuning databases\n\nComing in next iteration!');
+        }
+        
+        function researchEngine() {
+            alert('🔍 Engine Research\n\nThis would search online for:\n• Factory specifications\n• Common modifications\n• Known issues and solutions\n• Dyno results from similar builds\n• Professional tuning recommendations\n\nIntegration pending!');
+        }
+        
+        function optimizeTune() {
+            alert('⚡ Optimize Tune\n\nAI would analyze:\n• Current driving patterns\n• Temperature trends\n• Knock events\n• Fuel efficiency\n• Performance metrics\n\nThen suggest tune adjustments!\n\nFeature in development!');
+        }
+    </script>
+</body>
+</html>
