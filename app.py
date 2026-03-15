@@ -131,7 +131,9 @@ class VehicleSimulator:
         
         # Speed calculation (Golf R 6-speed gear ratios)
         if self.telemetry["gear"] > 0:
-            gear_ratio = [0, 3.36, 1.95, 1.37, 1.03, 0.84, 0.68][self.telemetry["gear"]]
+            gear_ratios = [0, 3.36, 1.95, 1.37, 1.03, 0.84, 0.68]
+            gear_idx = min(self.telemetry["gear"], len(gear_ratios) - 1)
+            gear_ratio = gear_ratios[gear_idx]
             self.telemetry["speed"] = (self.telemetry["rpm"] / gear_ratio) * 0.05
         
         # Auto gear shifting (6-speed)
