@@ -550,7 +550,8 @@
     </div>
     
     <script>
-        const socket = io();
+        const socket = window.io ? io() : null;
+        const chartLibraryAvailable = typeof Chart !== 'undefined';
         
         // Chart data storage
         const maxDataPoints = 50;
@@ -569,122 +570,135 @@
         };
         
         // Initialize charts
-        const rpmBoostChart = new Chart(document.getElementById('rpmBoostChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'RPM',
-                    data: chartData.rpm,
-                    borderColor: '#00ff88',
-                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                    yAxisID: 'y',
-                }, {
-                    label: 'Boost (PSI)',
-                    data: chartData.boost,
-                    borderColor: '#ff6600',
-                    backgroundColor: 'rgba(255, 102, 0, 0.1)',
-                    yAxisID: 'y1',
-                }]
-            },
-            options: {
-                responsive: true,
-                interaction: { mode: 'index', intersect: false },
-                scales: {
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'RPM', color: '#00ff88' }, ticks: { color: '#00ff88' } },
-                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Boost (PSI)', color: '#ff6600' }, ticks: { color: '#ff6600' }, grid: { drawOnChartArea: false } }
+        let rpmBoostChart = null;
+        let tempChart = null;
+        let afrChart = null;
+        let powerChart = null;
+
+        if (chartLibraryAvailable) {
+            rpmBoostChart = new Chart(document.getElementById('rpmBoostChart'), {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'RPM',
+                        data: chartData.rpm,
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        yAxisID: 'y',
+                    }, {
+                        label: 'Boost (PSI)',
+                        data: chartData.boost,
+                        borderColor: '#ff6600',
+                        backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                        yAxisID: 'y1',
+                    }]
                 },
-                plugins: { legend: { labels: { color: '#fff' } } }
-            }
-        });
-        
-        const tempChart = new Chart(document.getElementById('tempChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Coolant (°F)',
-                    data: chartData.ect,
-                    borderColor: '#00aaff',
-                    backgroundColor: 'rgba(0, 170, 255, 0.1)',
-                }, {
-                    label: 'Oil (°F)',
-                    data: chartData.oilTemp,
-                    borderColor: '#ffaa00',
-                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
-                }, {
-                    label: 'Exhaust (°F)',
-                    data: chartData.egt,
-                    borderColor: '#ff4444',
-                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { labels: { color: '#fff' } } },
-                scales: { y: { ticks: { color: '#fff' } } }
-            }
-        });
-        
-        const afrChart = new Chart(document.getElementById('afrChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'AFR',
-                    data: chartData.afr,
-                    borderColor: '#00ff88',
-                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                    yAxisID: 'y',
-                }, {
-                    label: 'Lambda',
-                    data: chartData.lambda,
-                    borderColor: '#aa88ff',
-                    backgroundColor: 'rgba(170, 136, 255, 0.1)',
-                    yAxisID: 'y1',
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'AFR', color: '#00ff88' }, ticks: { color: '#00ff88' } },
-                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Lambda', color: '#aa88ff' }, ticks: { color: '#aa88ff' }, grid: { drawOnChartArea: false } }
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'RPM', color: '#00ff88' }, ticks: { color: '#00ff88' } },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Boost (PSI)', color: '#ff6600' }, ticks: { color: '#ff6600' }, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+
+            tempChart = new Chart(document.getElementById('tempChart'), {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Coolant (°F)',
+                        data: chartData.ect,
+                        borderColor: '#00aaff',
+                        backgroundColor: 'rgba(0, 170, 255, 0.1)',
+                    }, {
+                        label: 'Oil (°F)',
+                        data: chartData.oilTemp,
+                        borderColor: '#ffaa00',
+                        backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                    }, {
+                        label: 'Exhaust (°F)',
+                        data: chartData.egt,
+                        borderColor: '#ff4444',
+                        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                    }]
                 },
-                plugins: { legend: { labels: { color: '#fff' } } }
-            }
-        });
-        
-        const powerChart = new Chart(document.getElementById('powerChart'), {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Throttle (%)',
-                    data: chartData.throttle,
-                    borderColor: '#00ff88',
-                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                }, {
-                    label: 'Timing (°)',
-                    data: chartData.timing,
-                    borderColor: '#ff6600',
-                    backgroundColor: 'rgba(255, 102, 0, 0.1)',
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { labels: { color: '#fff' } } },
-                scales: { y: { ticks: { color: '#fff' } } }
-            }
-        });
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#fff' } } },
+                    scales: { y: { ticks: { color: '#fff' } } }
+                }
+            });
+
+            afrChart = new Chart(document.getElementById('afrChart'), {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'AFR',
+                        data: chartData.afr,
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        yAxisID: 'y',
+                    }, {
+                        label: 'Lambda',
+                        data: chartData.lambda,
+                        borderColor: '#aa88ff',
+                        backgroundColor: 'rgba(170, 136, 255, 0.1)',
+                        yAxisID: 'y1',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'AFR', color: '#00ff88' }, ticks: { color: '#00ff88' } },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Lambda', color: '#aa88ff' }, ticks: { color: '#aa88ff' }, grid: { drawOnChartArea: false } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+
+            powerChart = new Chart(document.getElementById('powerChart'), {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: 'Throttle (%)',
+                        data: chartData.throttle,
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    }, {
+                        label: 'Timing (°)',
+                        data: chartData.timing,
+                        borderColor: '#ff6600',
+                        backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#fff' } } },
+                    scales: { y: { ticks: { color: '#fff' } } }
+                }
+            });
+        }
         
         // Socket event handlers
-        socket.on('telemetry_update', function(data) {
-            updateTelemetry(data.telemetry);
-            updateTuneInfo(data.tune);
-            updateSafetyAlerts(data.safety);
-            updateTwinBrain(data.twinbrain);
-            updateCharts(data.telemetry);
-        });
+        if (socket) {
+            socket.on('telemetry_update', function(data) {
+                updateTelemetry(data.telemetry);
+                updateTuneInfo(data.tune);
+                updateSafetyAlerts(data.safety);
+                updateTwinBrain(data.twinbrain);
+                updateEngineStatus(data.telemetry.rpm > 0);
+                updateCharts(data.telemetry);
+            });
+        } else {
+            refreshStatus();
+            setInterval(refreshStatus, 1000);
+        }
         
         function updateTelemetry(telemetry) {
             document.getElementById('rpm').textContent = Math.round(telemetry.rpm);
@@ -706,6 +720,15 @@
             
             // Update warning states
             updateCardWarnings(telemetry);
+        }
+
+        function updateEngineStatus(engineOn) {
+            document.getElementById('engineStatus').className = engineOn
+                ? 'status-indicator status-on'
+                : 'status-indicator status-off';
+            document.getElementById('engineStatusText').textContent = engineOn
+                ? 'Engine: RUNNING'
+                : 'Engine: OFF';
         }
         
         function updateCardWarnings(telemetry) {
@@ -784,6 +807,10 @@
         }
         
         function updateCharts(telemetry) {
+            if (!chartLibraryAvailable || !rpmBoostChart || !tempChart || !afrChart || !powerChart) {
+                return;
+            }
+
             const now = new Date().toLocaleTimeString();
             
             chartData.labels.push(now);
@@ -818,19 +845,29 @@
             afrChart.update('none');
             powerChart.update('none');
         }
+
+        async function refreshStatus() {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            updateTelemetry(data.telemetry);
+            updateTuneInfo(data.tune);
+            updateSafetyAlerts(data.safety);
+            updateTwinBrain(data.twinbrain);
+            updateEngineStatus(data.engine_on);
+        }
         
         // Control functions
         async function startEngine() {
             const response = await fetch('/api/engine/start', { method: 'POST' });
             const data = await response.json();
-            document.getElementById('engineStatus').className = 'status-indicator status-on';
-            document.getElementById('engineStatusText').textContent = 'Engine: RUNNING';
+            updateEngineStatus(true);
+            refreshStatus();
         }
         
         async function stopEngine() {
             const response = await fetch('/api/engine/stop', { method: 'POST' });
-            document.getElementById('engineStatus').className = 'status-indicator status-off';
-            document.getElementById('engineStatusText').textContent = 'Engine: OFF';
+            updateEngineStatus(false);
+            refreshStatus();
         }
         
         async function setMode(mode) {

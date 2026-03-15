@@ -445,6 +445,7 @@ def get_status():
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
         "engine_config": vehicle.engine_config,
+        "safety": vehicle.check_safety(),
         "twinbrain": twinbrain.state
     })
 
