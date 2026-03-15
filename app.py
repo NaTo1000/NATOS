@@ -279,7 +279,7 @@ def set_tune_mode():
     mode = data.get('mode', 'stock')
     
     # In safe mode, block aggressive tuning modes
-    if SAFE_MODE and mode in ('modified',):
+    if SAFE_MODE and mode == 'modified':
         return jsonify({"status": "error", "message": "Modified mode is disabled in safe mode"}), 403
     
     # Apply tuning presets
