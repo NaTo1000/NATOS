@@ -12,11 +12,148 @@ import threading
 import time
 import random
 import json
+import re
 from datetime import datetime
+from ai_tuner import AITuningAgent
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+MAX_MODE_LENGTH = 32
+DEFAULT_ADJUSTMENT_COOLDOWN_SECONDS = 1.0
+MODE_SANITIZATION_PATTERN = re.compile(r"[^a-zA-Z0-9_-]+")
+
+TUNE_LIMITS = {
+    "fuel_map_adjustment": (-20, 20),
+    "timing_adjustment": (-10, 10),
+    "boost_target": (0, 30),
+    "afr_target": (10.0, 16.0),
+    "rev_limit": (5000, 8000),
+}
+
+
+def clamp_value(value, min_value, max_value):
+    return max(min_value, min(max_value, value))
+
+
+def sanitize_mode_value(value):
+    sanitized = MODE_SANITIZATION_PATTERN.sub("", str(value))[:MAX_MODE_LENGTH]
+    return sanitized or "stock"
+
+
+def normalize_tune_updates(updates):
+    """Clamp and sanitize runtime tune updates."""
+    normalized = {}
+    for key, value in updates.items():
+        if key == "mode":
+            normalized[key] = sanitize_mode_value(value)
+            continue
+
+        if key not in TUNE_LIMITS:
+            continue
+
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            continue
+
+        min_value, max_value = TUNE_LIMITS[key]
+        numeric_value = clamp_value(numeric_value, min_value, max_value)
+        normalized[key] = int(numeric_value) if key == "rev_limit" else round(numeric_value, 1)
+
+    return normalized
+
+
+class TwinBrainUpdater:
+    """Dual-lane adaptive monitor for live tune analysis and safety changes."""
+
+    def __init__(self):
+        self.agent = AITuningAgent()
+        self.adjustment_cooldown_seconds = DEFAULT_ADJUSTMENT_COOLDOWN_SECONDS
+        self.last_adjustment_at = 0
+        self.state = self._build_state()
+
+    def _build_state(self, **overrides):
+        state = {
+            "status": "standby",
+            "safety_brain": "Monitoring for live corrections",
+            "analysis_brain": "TWINBRAIN analysis idle until engine start",
+            "rampack_module": "Mini PCI Rampack standing by",
+            "last_adjustment": "No live adjustments applied yet",
+            "adjustments": {},
+            "reasons": [],
+        }
+        state.update(overrides)
+        return state
+
+    def reset(self):
+        self.last_adjustment_at = 0
+        self.state = self._build_state()
+
+    def process(self, vehicle, safety_status):
+        telemetry = vehicle.telemetry
+        tune = vehicle.tune
+        adaptation = self.agent.monitor_and_adapt(tune, telemetry, safety_status)
+
+        analysis_brain = self._analyze_headroom(telemetry, tune, safety_status)
+        safety_brain = "Safety lane stable"
+        status = "tracking"
+        applied_adjustments = {}
+        reasons = adaptation["reasons"]
+
+        if safety_status["critical"]:
+            status = "critical"
+            safety_brain = "Safety lane in critical response mode"
+        elif adaptation["adjustments_needed"]:
+            status = "adapting"
+            safety_brain = "Safety lane preparing live parameter correction"
+
+        if adaptation["adjustments_needed"] and time.time() - self.last_adjustment_at >= self.adjustment_cooldown_seconds:
+            normalized_updates = normalize_tune_updates(adaptation["adjustments"])
+            applied_adjustments = {
+                key: value
+                for key, value in normalized_updates.items()
+                if tune.get(key) != value
+            }
+            if applied_adjustments:
+                vehicle.tune.update(applied_adjustments)
+                self.last_adjustment_at = time.time()
+                status = "adapting"
+                safety_brain = "Safety lane applied live adjustment"
+
+        last_adjustment = "No update required"
+        if applied_adjustments:
+            adjustment_text = ", ".join(f"{key}={value}" for key, value in applied_adjustments.items())
+            last_adjustment = f"Mini PCI Rampack applied: {adjustment_text}"
+        elif adaptation["adjustments_needed"]:
+            last_adjustment = "TwinBrain queued a change and is respecting cooldown"
+
+        self.state = self._build_state(
+            status=status,
+            safety_brain=safety_brain,
+            analysis_brain=analysis_brain,
+            rampack_module="Mini PCI Rampack linked for on-the-fly parameter updates",
+            last_adjustment=last_adjustment,
+            adjustments=applied_adjustments,
+            reasons=reasons,
+        )
+        return self.state
+
+    def _analyze_headroom(self, telemetry, tune, safety_status):
+        if safety_status["critical"]:
+            return "Analysis lane locked to protection-first monitoring"
+
+        throttle = telemetry.get("throttle_position", 0)
+        boost = telemetry.get("boost", 0)
+        target_boost = tune.get("boost_target", 0)
+        iat = telemetry.get("iat", 0)
+        knock_count = telemetry.get("knock_count", 0)
+
+        if throttle > 70 and boost < target_boost - 2 and iat < 130 and knock_count == 0:
+            return "Analysis lane sees thermal headroom for quicker boost response"
+        if throttle < 20 and telemetry.get("afr", 14.7) < tune.get("afr_target", 14.7):
+            return "Analysis lane recommends leaner light-load trims for better transient response"
+        return "Analysis lane sees stable operating window for live tuning"
 
 class VehicleSimulator:
     """Simulates realistic vehicle telemetry data"""
@@ -218,6 +355,7 @@ class VehicleSimulator:
 
 # Global vehicle instance
 vehicle = VehicleSimulator()
+twinbrain = TwinBrainUpdater()
 
 def telemetry_thread():
     """Background thread for telemetry updates"""
@@ -225,11 +363,13 @@ def telemetry_thread():
         if vehicle.engine_on:
             vehicle.update()
             safety = vehicle.check_safety()
+            twinbrain_state = twinbrain.process(vehicle, safety)
             
             data = {
                 "telemetry": vehicle.telemetry,
                 "tune": vehicle.tune,
                 "safety": safety,
+                "twinbrain": twinbrain_state,
                 "timestamp": datetime.now().isoformat()
             }
             
@@ -244,11 +384,13 @@ def index():
 @app.route('/api/engine/start', methods=['POST'])
 def start_engine():
     vehicle.start()
+    twinbrain.reset()
     return jsonify({"status": "started", "rpm": vehicle.telemetry["rpm"]})
 
 @app.route('/api/engine/stop', methods=['POST'])
 def stop_engine():
     vehicle.stop()
+    twinbrain.reset()
     return jsonify({"status": "stopped"})
 
 @app.route('/api/tune/mode', methods=['POST'])
@@ -298,8 +440,11 @@ def set_tune_mode():
 
 @app.route('/api/tune/custom', methods=['POST'])
 def set_custom_tune():
-    data = request.json
-    vehicle.tune.update(data)
+    data = request.json or {}
+    normalized_updates = normalize_tune_updates(data)
+    if "mode" in data:
+        normalized_updates["mode"] = sanitize_mode_value(data["mode"])
+    vehicle.tune.update(normalized_updates)
     return jsonify({"status": "success", "tune": vehicle.tune})
 
 @app.route('/api/status', methods=['GET'])
@@ -308,7 +453,9 @@ def get_status():
         "engine_on": vehicle.engine_on,
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
-        "engine_config": vehicle.engine_config
+        "engine_config": vehicle.engine_config,
+        "safety": vehicle.check_safety(),
+        "twinbrain": twinbrain.state
     })
 
 @socketio.on('connect')
