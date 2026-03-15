@@ -12,12 +12,16 @@ import threading
 import time
 import random
 import json
+import re
 from datetime import datetime
 from ai_tuner import AITuningAgent
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+MAX_MODE_LENGTH = 32
+DEFAULT_ADJUSTMENT_COOLDOWN_SECONDS = 1.0
+MODE_SANITIZATION_PATTERN = re.compile(r"[^a-zA-Z0-9_-]+")
 
 TUNE_LIMITS = {
     "fuel_map_adjustment": (-20, 20),
@@ -28,8 +32,13 @@ TUNE_LIMITS = {
 }
 
 
-def clamp(value, min_value, max_value):
+def clamp_value(value, min_value, max_value):
     return max(min_value, min(max_value, value))
+
+
+def sanitize_mode_value(value):
+    sanitized = MODE_SANITIZATION_PATTERN.sub("", str(value))[:MAX_MODE_LENGTH]
+    return sanitized or "stock"
 
 
 def normalize_tune_updates(updates):
@@ -37,7 +46,7 @@ def normalize_tune_updates(updates):
     normalized = {}
     for key, value in updates.items():
         if key == "mode":
-            normalized[key] = str(value)[:32]
+            normalized[key] = sanitize_mode_value(value)
             continue
 
         if key not in TUNE_LIMITS:
@@ -49,7 +58,7 @@ def normalize_tune_updates(updates):
             continue
 
         min_value, max_value = TUNE_LIMITS[key]
-        numeric_value = clamp(numeric_value, min_value, max_value)
+        numeric_value = clamp_value(numeric_value, min_value, max_value)
         normalized[key] = int(numeric_value) if key == "rev_limit" else round(numeric_value, 1)
 
     return normalized
@@ -60,7 +69,7 @@ class TwinBrainUpdater:
 
     def __init__(self):
         self.agent = AITuningAgent()
-        self.cooldown_seconds = 1.0
+        self.adjustment_cooldown_seconds = DEFAULT_ADJUSTMENT_COOLDOWN_SECONDS
         self.last_adjustment_at = 0
         self.state = self._build_state()
 
@@ -99,7 +108,7 @@ class TwinBrainUpdater:
             status = "adapting"
             safety_brain = "Safety lane preparing live parameter correction"
 
-        if adaptation["adjustments_needed"] and time.time() - self.last_adjustment_at >= self.cooldown_seconds:
+        if adaptation["adjustments_needed"] and time.time() - self.last_adjustment_at >= self.adjustment_cooldown_seconds:
             normalized_updates = normalize_tune_updates(adaptation["adjustments"])
             applied_adjustments = {
                 key: value
@@ -143,7 +152,7 @@ class TwinBrainUpdater:
         if throttle > 70 and boost < target_boost - 2 and iat < 130 and knock_count == 0:
             return "Analysis lane sees thermal headroom for quicker boost response"
         if throttle < 20 and telemetry.get("afr", 14.7) < tune.get("afr_target", 14.7):
-            return "Analysis lane recommends leaner light-load trims for faster transient response"
+            return "Analysis lane recommends leaner light-load trims for better transient response"
         return "Analysis lane sees stable operating window for live tuning"
 
 class VehicleSimulator:
@@ -434,7 +443,7 @@ def set_custom_tune():
     data = request.json or {}
     normalized_updates = normalize_tune_updates(data)
     if "mode" in data:
-        normalized_updates["mode"] = str(data["mode"])[:32]
+        normalized_updates["mode"] = sanitize_mode_value(data["mode"])
     vehicle.tune.update(normalized_updates)
     return jsonify({"status": "success", "tune": vehicle.tune})
 

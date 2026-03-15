@@ -393,7 +393,7 @@
 
         <div class="tune-info">
             <h3>🧠 TWINBRAIN Real-Time Updater</h3>
-            <div class="brain-status" id="twinbrain-status">STANDBY</div>
+            <div class="brain-status" id="twinbrain-status" role="status" aria-live="polite">standby</div>
             <div class="brain-grid">
                 <div class="tune-param">
                     <span class="tune-param-label">Safety Brain</span>
@@ -552,6 +552,7 @@
     <script>
         const socket = window.io ? io() : null;
         const chartLibraryAvailable = typeof Chart !== 'undefined';
+        const fallbackPollingIntervalMs = 1000;
         
         // Chart data storage
         const maxDataPoints = 50;
@@ -696,8 +697,9 @@
                 updateCharts(data.telemetry);
             });
         } else {
+            console.warn('Socket.IO unavailable, falling back to /api/status polling.');
             refreshStatus();
-            setInterval(refreshStatus, 1000);
+            setInterval(refreshStatus, fallbackPollingIntervalMs);
         }
         
         function updateTelemetry(telemetry) {
@@ -847,13 +849,19 @@
         }
 
         async function refreshStatus() {
-            const response = await fetch('/api/status');
-            const data = await response.json();
-            updateTelemetry(data.telemetry);
-            updateTuneInfo(data.tune);
-            updateSafetyAlerts(data.safety);
-            updateTwinBrain(data.twinbrain);
-            updateEngineStatus(data.engine_on);
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                updateTelemetry(data.telemetry);
+                updateTuneInfo(data.tune);
+                updateSafetyAlerts(data.safety);
+                updateTwinBrain(data.twinbrain);
+                updateEngineStatus(data.engine_on);
+            } catch (error) {
+                console.error('Status refresh failed:', error);
+                const errorName = error && error.name ? error.name : 'unknown error';
+                document.getElementById('twinbrain-reasons').textContent = `TwinBrain polling retry in progress after a dashboard refresh error (${errorName})`;
+            }
         }
         
         // Control functions
