@@ -14,6 +14,9 @@ import random
 import json
 from datetime import datetime
 
+from bcu_module import BoostControllerUnit
+from orchestrator import Orchestrator
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
@@ -216,8 +219,10 @@ class VehicleSimulator:
             
         return {"warnings": warnings, "critical": critical}
 
-# Global vehicle instance
+# Global instances
 vehicle = VehicleSimulator()
+bcu = BoostControllerUnit()
+orchestrator = Orchestrator(bcu)
 
 def telemetry_thread():
     """Background thread for telemetry updates"""
@@ -225,14 +230,29 @@ def telemetry_thread():
         if vehicle.engine_on:
             vehicle.update()
             safety = vehicle.check_safety()
-            
+
+            # Orchestrator tick — runs BCU, AI optimizer, safety guardian
+            orch_result = {}
+            if orchestrator.active:
+                orch_result = orchestrator.tick(vehicle.telemetry)
+                # Apply BCU effective timing back to the vehicle
+                bcu_timing = bcu.timing_base + bcu.timing_offset
+                vehicle.tune["timing_adjustment"] = bcu_timing - 15  # offset from base 15°
+                vehicle.tune["boost_target"] = bcu.boost_target
+
             data = {
                 "telemetry": vehicle.telemetry,
                 "tune": vehicle.tune,
                 "safety": safety,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "bcu": bcu.get_status(),
+                "orchestrator": {
+                    "active": orchestrator.active,
+                    "tick_count": orchestrator.tick_count,
+                    "goal": orchestrator.optimization_goal.value,
+                },
             }
-            
+
             socketio.emit('telemetry_update', data)
         
         time.sleep(0.1)  # 10 Hz update rate
@@ -308,8 +328,105 @@ def get_status():
         "engine_on": vehicle.engine_on,
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
-        "engine_config": vehicle.engine_config
+        "engine_config": vehicle.engine_config,
+        "bcu": bcu.get_status(),
+        "orchestrator": orchestrator.get_status(),
     })
+
+# ── BCU Endpoints ───────────────────────────────────────────────
+
+@app.route('/api/bcu/status', methods=['GET'])
+def bcu_status():
+    return jsonify(bcu.get_status())
+
+@app.route('/api/bcu/activate', methods=['POST'])
+def bcu_activate():
+    return jsonify(bcu.activate())
+
+@app.route('/api/bcu/deactivate', methods=['POST'])
+def bcu_deactivate():
+    return jsonify(bcu.deactivate())
+
+@app.route('/api/bcu/timing/advance', methods=['POST'])
+def bcu_timing_advance():
+    data = request.json or {}
+    steps = data.get('steps', 1)
+    return jsonify(bcu.advance_timing(steps))
+
+@app.route('/api/bcu/timing/retard', methods=['POST'])
+def bcu_timing_retard():
+    data = request.json or {}
+    steps = data.get('steps', 1)
+    return jsonify(bcu.retard_timing(steps))
+
+@app.route('/api/bcu/timing/increment', methods=['POST'])
+def bcu_timing_increment():
+    data = request.json or {}
+    inc = data.get('increment', 'STANDARD')
+    return jsonify(bcu.set_timing_increment(inc))
+
+@app.route('/api/bcu/boost/increase', methods=['POST'])
+def bcu_boost_increase():
+    data = request.json or {}
+    steps = data.get('steps', 1)
+    return jsonify(bcu.increase_boost(steps))
+
+@app.route('/api/bcu/boost/decrease', methods=['POST'])
+def bcu_boost_decrease():
+    data = request.json or {}
+    steps = data.get('steps', 1)
+    return jsonify(bcu.decrease_boost(steps))
+
+@app.route('/api/bcu/boost/increment', methods=['POST'])
+def bcu_boost_increment():
+    data = request.json or {}
+    inc = data.get('increment', 'STANDARD')
+    return jsonify(bcu.set_boost_increment(inc))
+
+@app.route('/api/bcu/boost/target', methods=['POST'])
+def bcu_boost_target():
+    data = request.json or {}
+    target = data.get('target', 12.0)
+    return jsonify(bcu.set_boost_target(target))
+
+@app.route('/api/bcu/history', methods=['GET'])
+def bcu_history():
+    last_n = request.args.get('n', 20, type=int)
+    return jsonify(bcu.get_adjustment_history(last_n))
+
+# ── Orchestrator Endpoints ──────────────────────────────────────
+
+@app.route('/api/orchestrator/status', methods=['GET'])
+def orchestrator_status():
+    return jsonify(orchestrator.get_status())
+
+@app.route('/api/orchestrator/start', methods=['POST'])
+def orchestrator_start():
+    return jsonify(orchestrator.start())
+
+@app.route('/api/orchestrator/stop', methods=['POST'])
+def orchestrator_stop():
+    return jsonify(orchestrator.stop())
+
+@app.route('/api/orchestrator/goal', methods=['POST'])
+def orchestrator_goal():
+    data = request.json or {}
+    goal = data.get('goal', 'balanced')
+    return jsonify(orchestrator.set_optimization_goal(goal))
+
+@app.route('/api/orchestrator/optimizations', methods=['GET'])
+def orchestrator_optimizations():
+    last_n = request.args.get('n', 20, type=int)
+    return jsonify(orchestrator.get_optimization_history(last_n))
+
+@app.route('/api/orchestrator/alerts', methods=['GET'])
+def orchestrator_alerts():
+    last_n = request.args.get('n', 20, type=int)
+    return jsonify(orchestrator.get_safety_alerts(last_n))
+
+@app.route('/api/orchestrator/trends', methods=['GET'])
+def orchestrator_trends():
+    return jsonify(orchestrator.get_telemetry_trends())
 
 @socketio.on('connect')
 def handle_connect():
@@ -327,10 +444,14 @@ if __name__ == '__main__':
     
     print("=" * 60)
     print("🏎️  NATOS - Autonomous Tuning & Optimization System")
+    print("    BCU Module + AI Orchestration Engine")
     print("=" * 60)
     print("⚠️  WARNING: FOR EDUCATIONAL/SIMULATION PURPOSES ONLY")
     print("=" * 60)
     print("\n🌐 Starting web server on http://localhost:5000")
+    print("📡 BCU Module .............. ready")
+    print("🤖 AI Orchestrator ......... ready")
+    print("🔗 WatsonX Connector ....... simulated")
     print("\n📊 Dashboard will open automatically...\n")
     
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True, use_reloader=False)

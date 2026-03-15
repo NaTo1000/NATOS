@@ -301,6 +301,152 @@
             color: #00ff88;
             font-weight: bold;
         }
+
+        /* ── BCU & Orchestrator Panel Styles ─────────────────── */
+        .bcu-orchestrator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .bcu-panel, .orchestrator-panel {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(0, 170, 255, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .bcu-panel h3, .orchestrator-panel h3 {
+            color: #00aaff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .bcu-panel .sub-heading, .orchestrator-panel .sub-heading {
+            color: #00aaff;
+            font-size: 0.95em;
+            margin: 12px 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .bcu-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+
+        .bcu-row .label {
+            color: #aaa;
+            min-width: 120px;
+            font-size: 0.9em;
+        }
+
+        .bcu-row .value {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 1em;
+        }
+
+        .bcu-btn-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 6px 0;
+        }
+
+        .bcu-btn {
+            padding: 8px 14px;
+            border: 1px solid rgba(0, 170, 255, 0.5);
+            border-radius: 6px;
+            background: rgba(0, 170, 255, 0.1);
+            color: #00aaff;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .bcu-btn:hover {
+            background: rgba(0, 170, 255, 0.3);
+            border-color: #00aaff;
+        }
+
+        .bcu-btn.active {
+            background: #00aaff;
+            color: #000;
+        }
+
+        .bcu-btn.danger {
+            border-color: rgba(255, 68, 68, 0.5);
+            color: #ff6666;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .bcu-btn.danger:hover {
+            background: rgba(255, 68, 68, 0.3);
+        }
+
+        .bcu-btn.success {
+            border-color: rgba(0, 255, 136, 0.5);
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .bcu-btn.success:hover {
+            background: rgba(0, 255, 136, 0.3);
+        }
+
+        .orch-state-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .orch-state-badge.active { background: rgba(0,255,136,0.2); color: #00ff88; border: 1px solid #00ff88; }
+        .orch-state-badge.idle   { background: rgba(150,150,150,0.2); color: #999; border: 1px solid #666; }
+        .orch-state-badge.error  { background: rgba(255,68,68,0.2); color: #ff4444; border: 1px solid #ff4444; }
+
+        .worker-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 8px 0;
+        }
+
+        .worker-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(0,170,255,0.2);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.85em;
+        }
+
+        .worker-card .w-name { color: #00aaff; font-weight: bold; }
+        .worker-card .w-stat { color: #888; }
+        .worker-card .w-val  { color: #00ff88; }
+
+        .opt-log {
+            max-height: 160px;
+            overflow-y: auto;
+            font-size: 0.82em;
+            margin-top: 6px;
+        }
+
+        .opt-log-entry {
+            padding: 4px 8px;
+            margin: 3px 0;
+            background: rgba(0,170,255,0.05);
+            border-left: 3px solid #00aaff;
+            border-radius: 4px;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
@@ -380,6 +526,124 @@
             </div>
         </div>
         
+        <!-- ── BCU & Orchestrator Panels ──────────────────────── -->
+        <div class="bcu-orchestrator-grid">
+            <!-- BCU Panel -->
+            <div class="bcu-panel">
+                <h3>📡 Boost Controller Unit (BCU)</h3>
+                <div class="bcu-row">
+                    <span class="label">Status:</span>
+                    <span class="value" id="bcu-state">IDLE</span>
+                    <div style="margin-left:auto" class="bcu-btn-group">
+                        <button class="bcu-btn success" onclick="bcuActivate()">Activate</button>
+                        <button class="bcu-btn danger" onclick="bcuDeactivate()">Deactivate</button>
+                    </div>
+                </div>
+
+                <p class="sub-heading">Timing Control</p>
+                <div class="bcu-row">
+                    <span class="label">Effective:</span>
+                    <span class="value" id="bcu-timing-eff">15.0° BTDC</span>
+                </div>
+                <div class="bcu-row">
+                    <span class="label">Offset:</span>
+                    <span class="value" id="bcu-timing-off">0.0°</span>
+                </div>
+                <div class="bcu-btn-group">
+                    <button class="bcu-btn" onclick="bcuTimingRetard()">− Retard</button>
+                    <button class="bcu-btn" onclick="bcuTimingAdvance()">+ Advance</button>
+                </div>
+                <div class="bcu-btn-group">
+                    <span style="color:#888;font-size:0.85em;margin-right:4px;">Increment:</span>
+                    <button class="bcu-btn" onclick="bcuTimingInc('FINE')" id="tinc-fine">0.5°</button>
+                    <button class="bcu-btn active" onclick="bcuTimingInc('STANDARD')" id="tinc-standard">1.0°</button>
+                    <button class="bcu-btn" onclick="bcuTimingInc('COARSE')" id="tinc-coarse">2.0°</button>
+                    <button class="bcu-btn" onclick="bcuTimingInc('AGGRESSIVE')" id="tinc-aggressive">5.0°</button>
+                </div>
+
+                <p class="sub-heading">Boost Control</p>
+                <div class="bcu-row">
+                    <span class="label">Target:</span>
+                    <span class="value" id="bcu-boost-tgt">12.0 PSI</span>
+                </div>
+                <div class="bcu-row">
+                    <span class="label">Wastegate:</span>
+                    <span class="value" id="bcu-wg-duty">0.0 %</span>
+                </div>
+                <div class="bcu-btn-group">
+                    <button class="bcu-btn" onclick="bcuBoostDec()">− Boost</button>
+                    <button class="bcu-btn" onclick="bcuBoostInc()">+ Boost</button>
+                </div>
+                <div class="bcu-btn-group">
+                    <span style="color:#888;font-size:0.85em;margin-right:4px;">Increment:</span>
+                    <button class="bcu-btn" onclick="bcuBoostIncrSet('FINE')" id="binc-fine">0.5</button>
+                    <button class="bcu-btn active" onclick="bcuBoostIncrSet('STANDARD')" id="binc-standard">1.0</button>
+                    <button class="bcu-btn" onclick="bcuBoostIncrSet('COARSE')" id="binc-coarse">2.0</button>
+                    <button class="bcu-btn" onclick="bcuBoostIncrSet('AGGRESSIVE')" id="binc-aggressive">5.0</button>
+                </div>
+            </div>
+
+            <!-- Orchestrator Panel -->
+            <div class="orchestrator-panel">
+                <h3>🤖 AI Orchestration Engine</h3>
+                <div class="bcu-row">
+                    <span class="label">Pipeline:</span>
+                    <span class="orch-state-badge idle" id="orch-badge">IDLE</span>
+                    <div style="margin-left:auto" class="bcu-btn-group">
+                        <button class="bcu-btn success" onclick="orchStart()">Start</button>
+                        <button class="bcu-btn danger" onclick="orchStop()">Stop</button>
+                    </div>
+                </div>
+                <div class="bcu-row">
+                    <span class="label">Ticks:</span>
+                    <span class="value" id="orch-ticks">0</span>
+                </div>
+
+                <p class="sub-heading">Optimization Goal</p>
+                <div class="bcu-btn-group">
+                    <button class="bcu-btn" onclick="orchGoal('performance')" id="goal-performance">Performance</button>
+                    <button class="bcu-btn active" onclick="orchGoal('balanced')" id="goal-balanced">Balanced</button>
+                    <button class="bcu-btn" onclick="orchGoal('economy')" id="goal-economy">Economy</button>
+                    <button class="bcu-btn" onclick="orchGoal('safety')" id="goal-safety">Safety</button>
+                </div>
+
+                <p class="sub-heading">Worker Status</p>
+                <div class="worker-grid">
+                    <div class="worker-card">
+                        <span class="w-name">📊 Telemetry Monitor</span><br>
+                        <span class="w-stat">Runs: </span><span class="w-val" id="w-tm-runs">0</span>
+                    </div>
+                    <div class="worker-card">
+                        <span class="w-name">🛡️ Safety Guardian</span><br>
+                        <span class="w-stat">Alerts: </span><span class="w-val" id="w-sg-alerts">0</span>
+                    </div>
+                    <div class="worker-card">
+                        <span class="w-name">📡 Boost Controller</span><br>
+                        <span class="w-stat">Runs: </span><span class="w-val" id="w-bc-runs">0</span>
+                    </div>
+                    <div class="worker-card">
+                        <span class="w-name">🧠 AI Optimizer</span><br>
+                        <span class="w-stat">Recs: </span><span class="w-val" id="w-ai-recs">0</span>
+                    </div>
+                </div>
+
+                <p class="sub-heading">WatsonX Connector</p>
+                <div class="bcu-row">
+                    <span class="label">Model:</span>
+                    <span class="value" style="font-size:0.9em">watsonx-coder-v1</span>
+                </div>
+                <div class="bcu-row">
+                    <span class="label">Calls:</span>
+                    <span class="value" id="wx-calls">0</span>
+                </div>
+
+                <p class="sub-heading">AI Optimization Log</p>
+                <div class="opt-log" id="optLogContainer">
+                    <div class="opt-log-entry" style="color:#666;">No optimizations yet</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Primary Telemetry -->
         <div class="telemetry-grid">
             <div class="telemetry-card" id="card-rpm">
@@ -637,6 +901,7 @@
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
             updateCharts(data.telemetry);
+            updateBCUOrchUI(data);
         });
         
         function updateTelemetry(telemetry) {
@@ -803,6 +1068,136 @@
         function optimizeTune() {
             alert('⚡ Optimize Tune\n\nAI would analyze:\n• Current driving patterns\n• Temperature trends\n• Knock events\n• Fuel efficiency\n• Performance metrics\n\nThen suggest tune adjustments!\n\nFeature in development!');
         }
+
+        // ── BCU Control Functions ──────────────────────────────
+        async function bcuActivate() {
+            await fetch('/api/bcu/activate', { method: 'POST' });
+        }
+        async function bcuDeactivate() {
+            await fetch('/api/bcu/deactivate', { method: 'POST' });
+        }
+        async function bcuTimingAdvance() {
+            await fetch('/api/bcu/timing/advance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: 1 })
+            });
+        }
+        async function bcuTimingRetard() {
+            await fetch('/api/bcu/timing/retard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: 1 })
+            });
+        }
+        async function bcuTimingInc(inc) {
+            await fetch('/api/bcu/timing/increment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ increment: inc })
+            });
+            document.querySelectorAll('[id^="tinc-"]').forEach(b => b.classList.remove('active'));
+            document.getElementById('tinc-' + inc.toLowerCase()).classList.add('active');
+        }
+        async function bcuBoostInc() {
+            await fetch('/api/bcu/boost/increase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: 1 })
+            });
+        }
+        async function bcuBoostDec() {
+            await fetch('/api/bcu/boost/decrease', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: 1 })
+            });
+        }
+        async function bcuBoostIncrSet(inc) {
+            await fetch('/api/bcu/boost/increment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ increment: inc })
+            });
+            document.querySelectorAll('[id^="binc-"]').forEach(b => b.classList.remove('active'));
+            document.getElementById('binc-' + inc.toLowerCase()).classList.add('active');
+        }
+
+        // ── Orchestrator Control Functions ─────────────────────
+        async function orchStart() {
+            await fetch('/api/orchestrator/start', { method: 'POST' });
+        }
+        async function orchStop() {
+            await fetch('/api/orchestrator/stop', { method: 'POST' });
+        }
+        async function orchGoal(goal) {
+            await fetch('/api/orchestrator/goal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ goal: goal })
+            });
+            document.querySelectorAll('[id^="goal-"]').forEach(b => b.classList.remove('active'));
+            document.getElementById('goal-' + goal).classList.add('active');
+        }
+
+        // ── Live BCU & Orchestrator UI updates ────────────────
+        let optLogEntries = [];
+        function updateBCUOrchUI(data) {
+            // BCU status
+            if (data.bcu) {
+                const bcu = data.bcu;
+                document.getElementById('bcu-state').textContent = (bcu.state || 'idle').toUpperCase();
+                if (bcu.timing) {
+                    document.getElementById('bcu-timing-eff').textContent = bcu.timing.effective + '° BTDC';
+                    document.getElementById('bcu-timing-off').textContent = (bcu.timing.offset >= 0 ? '+' : '') + bcu.timing.offset + '°';
+                }
+                if (bcu.boost) {
+                    document.getElementById('bcu-boost-tgt').textContent = bcu.boost.target + ' PSI';
+                }
+                document.getElementById('bcu-wg-duty').textContent = (bcu.wastegate_duty || 0) + ' %';
+            }
+            // Orchestrator status
+            if (data.orchestrator) {
+                const o = data.orchestrator;
+                const badge = document.getElementById('orch-badge');
+                badge.textContent = o.active ? 'ACTIVE' : 'IDLE';
+                badge.className = 'orch-state-badge ' + (o.active ? 'active' : 'idle');
+                document.getElementById('orch-ticks').textContent = o.tick_count || 0;
+            }
+        }
+
+        // Periodically fetch orchestrator details
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/orchestrator/status');
+                const status = await res.json();
+                if (status.workers) {
+                    const tm = status.workers.telemetry_monitor;
+                    const sg = status.workers.safety_guardian;
+                    const bc = status.workers.boost_controller;
+                    const ai = status.workers.ai_optimizer;
+                    if (tm) document.getElementById('w-tm-runs').textContent = tm.run_count;
+                    if (sg) document.getElementById('w-sg-alerts').textContent = sg.metrics.alert_count || 0;
+                    if (bc) document.getElementById('w-bc-runs').textContent = bc.run_count;
+                    if (ai) document.getElementById('w-ai-recs').textContent = ai.metrics.total_recommendations || 0;
+                }
+                if (status.watsonx) {
+                    document.getElementById('wx-calls').textContent = status.watsonx.call_count;
+                }
+                // Update opt log
+                const optRes = await fetch('/api/orchestrator/optimizations?n=8');
+                const opts = await optRes.json();
+                const container = document.getElementById('optLogContainer');
+                if (opts.length > 0) {
+                    container.innerHTML = opts.map(o =>
+                        '<div class="opt-log-entry">' +
+                        '<strong>' + (o.goal || '') + '</strong> ' +
+                        (o.adjustments || []).join(', ') +
+                        '</div>'
+                    ).join('');
+                }
+            } catch (e) { /* ignore fetch errors */ }
+        }, 2000);
     </script>
 </body>
 </html>
