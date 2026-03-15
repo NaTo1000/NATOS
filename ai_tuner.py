@@ -30,7 +30,7 @@ class AITuningAgent:
                 "exhaust_lift": 0.525,  # inches
                 "lobe_separation_angle": 116.0,  # degrees
                 "intake_centerline": 116,  # degrees ATDC
-                "overlap": -28,  # degrees (negative = no overlap)
+                "overlap": -28,  # degrees (negative = valves don't overlap)
                 "grind_type": "hydraulic_roller",
                 "rpm_range": [1000, 6000],
                 "estimated_hp_gain": 0,

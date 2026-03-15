@@ -97,7 +97,7 @@ def demo_engine_research():
     for key in research['cam_spec']['available_profiles']:
         cam_info = agent.cam_profiles[key]
         print(f"  • {cam_info['name']}: {cam_info['intake_duration_at_050']}°/{cam_info['exhaust_duration_at_050']}° dur, "
-              f"{cam_info['intake_lift']}\"/{ cam_info['exhaust_lift']}\" lift, "
+              f"{cam_info['intake_lift']}\"/{cam_info['exhaust_lift']}\" lift, "
               f"+{cam_info['estimated_hp_gain']}hp")
     
     input("\nPress Enter to continue...")
