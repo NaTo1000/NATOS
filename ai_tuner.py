@@ -5,6 +5,7 @@ Autonomous tuning system with internet research capabilities
 
 import os
 import json
+import math
 from typing import Dict, List, Any
 
 class AITuningAgent:
@@ -48,10 +49,31 @@ class AITuningAgent:
         # In production, this would make actual web searches
         # For now, we'll return realistic simulated data
         
+        displacement = engine_specs.get('displacement', 2.0)
+        cylinders = engine_specs.get('cylinders', 4)
+        aspiration = engine_specs.get('aspiration', 'turbocharged')
+        
+        base_safe_boost = 22 - (displacement * 2)
+        safe_boost_limit = max(12, min(25, round(base_safe_boost)))
+        max_boost_modified = min(30, safe_boost_limit + 5)
+        
+        safe_power_per_liter = max(80, 150 + (cylinders * 10) - (displacement * 15))
+        power_smoothness = min(1.0, round(0.5 + (cylinders * 0.1), 2))
+        
+        base_timing = max(10, round(18 - displacement * 1.5))
+        boost_retard_per_psi = round(-0.3 - (displacement * 0.1), 2)
+        
+        hp_limit = round(displacement * safe_power_per_liter)
+        fuel_pump_limit = round(hp_limit * 1.15)
+        
+        engine_type = f"{displacement}L {aspiration.title()} Inline-{cylinders}"
+        
         return {
-            "engine_type": "2.0L Turbocharged Inline-4",
-            "safe_boost_limit": 20,  # PSI
-            "max_boost_modified": 25,  # PSI with upgraded internals
+            "engine_type": engine_type,
+            "safe_boost_limit": safe_boost_limit,
+            "max_boost_modified": max_boost_modified,
+            "safe_power_per_liter": round(safe_power_per_liter, 1),
+            "power_smoothness": power_smoothness,
             "afr_recommendations": {
                 "idle": 14.7,
                 "cruise": 15.0,
@@ -60,21 +82,21 @@ class AITuningAgent:
                 "max_boost": 11.5
             },
             "timing_guidelines": {
-                "base_timing": 15,  # degrees BTDC
-                "boost_retard": -0.5,  # degrees per PSI over 10
-                "knock_retard": -2  # degrees on knock detection
+                "base_timing": base_timing,
+                "boost_retard": boost_retard_per_psi,
+                "knock_retard": -2
             },
             "common_issues": [
-                "Weak piston rings above 350hp",
-                "Stock turbo efficient to ~18 PSI",
-                "Fuel pump limits at 400hp",
-                "Stock intercooler heat soaks above 15 PSI"
+                f"Weak piston rings above {hp_limit}hp",
+                f"Stock turbo efficient to ~{safe_boost_limit} PSI",
+                f"Fuel pump limits at {fuel_pump_limit}hp",
+                f"Stock intercooler heat soaks above {safe_boost_limit - 3} PSI"
             ],
             "recommended_mods": [
                 "Upgraded intercooler (reduces IAT by 30-50°F)",
-                "High-flow fuel pump (supports 500hp)",
-                "Forged pistons (safe to 25 PSI)",
-                "Larger turbo (efficient to 25+ PSI)"
+                f"High-flow fuel pump (supports {fuel_pump_limit + 100}hp)",
+                f"Forged pistons (safe to {max_boost_modified} PSI)",
+                f"Larger turbo (efficient to {max_boost_modified}+ PSI)"
             ]
         }
     
@@ -111,6 +133,9 @@ class AITuningAgent:
         elif avg_throttle < 50 and max_rpm < 5000:
             style = "moderate"
             recommendation = "Balanced tune for daily driving"
+        elif avg_throttle <= 60 and max_rpm <= 6000:
+            style = "spirited"
+            recommendation = "Spirited tune with enhanced throttle response"
         elif avg_throttle > 60 or max_rpm > 6000:
             style = "aggressive"
             recommendation = "Performance-oriented tune"
@@ -118,9 +143,13 @@ class AITuningAgent:
             style = "mixed"
             recommendation = "Adaptive tune with multiple modes"
         
+        num_samples = len(telemetry_history)
+        data_confidence = round(min(1.0, num_samples / 50.0), 2)
+        
         return {
             "driving_style": style,
             "recommendation": recommendation,
+            "data_confidence": data_confidence,
             "statistics": {
                 "avg_throttle": avg_throttle,
                 "max_throttle": max_throttle,
@@ -172,6 +201,14 @@ class AITuningAgent:
                 "afr_target": 15.0,
                 "rev_limit": 6500
             })
+        elif style == "spirited":
+            tune.update({
+                "fuel_map_adjustment": 5,
+                "timing_adjustment": 2,
+                "boost_target": 14,
+                "afr_target": 12.8,
+                "rev_limit": 7000
+            })
         elif style == "aggressive" or style == "performance":
             tune.update({
                 "fuel_map_adjustment": 10,
@@ -206,6 +243,12 @@ class AITuningAgent:
             tune["afr_target"] = max(11.5, tune["afr_target"])
             tune["timing_adjustment"] = min(4, tune["timing_adjustment"])
         
+        # Parameter interaction effects
+        if tune["boost_target"] > 14 and tune["timing_adjustment"] > 2:
+            tune["timing_adjustment"] -= 1
+        if tune["afr_target"] < 12.5 and tune["boost_target"] > 14:
+            tune["fuel_map_adjustment"] += 3
+        
         # Add safety warnings
         warnings = []
         if tune["boost_target"] > 15:
@@ -215,14 +258,20 @@ class AITuningAgent:
         if tune["timing_adjustment"] > 3:
             warnings.append(f"Advanced timing +{tune['timing_adjustment']}° increases knock risk")
         
+        boost = tune["boost_target"]
+        hp_gain = round(15 + 10 * math.sqrt(boost / 10), 1)
+        tq_gain = round(20 + 12 * math.sqrt(boost / 10), 1)
+        turbo_lag_estimate = round(0.5 + (boost / 20), 2)
+        
         return {
             "tune_parameters": tune,
             "confidence": 0.85,
             "warnings": warnings,
             "recommendations": research["recommended_mods"],
+            "turbo_lag_estimate": turbo_lag_estimate,
             "expected_gains": {
-                "horsepower": f"+{15 + tune['boost_target']}%",
-                "torque": f"+{20 + tune['boost_target']}%",
+                "horsepower": f"+{hp_gain}%",
+                "torque": f"+{tq_gain}%",
                 "fuel_economy": f"{-10 if style == 'aggressive' else +5}%"
             }
         }
@@ -273,6 +322,27 @@ class AITuningAgent:
         if telemetry.get("oil_pressure", 50) < 10 and telemetry.get("rpm", 0) > 2000:
             adjustments["rev_limit"] = 3000  # Emergency limp mode
             reasons.append("CRITICAL: Low oil pressure - limiting RPM")
+        
+        # Check EGT
+        if telemetry.get("egt", 0) > 1400:
+            adjustments["fuel_map_adjustment"] = current_tune["fuel_map_adjustment"] + 5
+            adjustments["boost_target"] = current_tune["boost_target"] - 3
+            reasons.append("High EGT - enriching mixture and reducing boost")
+        
+        # Check injector duty cycle
+        if telemetry.get("injector_duty", 0) > 85:
+            adjustments["fuel_map_adjustment"] = current_tune["fuel_map_adjustment"] - 3
+            reasons.append("WARNING: Injector duty cycle >85% - reducing fuel map to protect injectors")
+        
+        # Check voltage
+        if telemetry.get("voltage", 14.0) < 13.0:
+            reasons.append("WARNING: Low voltage - electrical system strain detected")
+        
+        # Check for over-boost
+        if telemetry.get("boost", 0) > current_tune.get("boost_target", 12) + 3:
+            adjustments["boost_target"] = 0
+            adjustments["timing_adjustment"] = current_tune["timing_adjustment"] - 5
+            reasons.append("CRITICAL: Over-boost detected - emergency boost cut and timing retard")
         
         return {
             "adjustments_needed": len(adjustments) > 0,
