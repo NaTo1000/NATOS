@@ -18,6 +18,15 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+MAX_MOTION_LOG_SIZE = 120
+MOTION_LOG_STREAM_WINDOW = 20
+AIR_CURVE_STREAM_WINDOW = 80
+TIMESTAMP_FORMAT = "%H:%M:%S"
+
+
+def clamp(value, lower, upper):
+    return max(lower, min(upper, value))
+
 class VehicleSimulator:
     """Simulates realistic vehicle telemetry data"""
     
@@ -81,6 +90,37 @@ class VehicleSimulator:
         self.brake_input = 0
         self.target_gear = 1
         
+        # Autonomous AI drive control (aggressive/mild/eco)
+        self.ai_profiles = {
+            "aggressive": {
+                "throttle_change_probability": 0.09,
+                "throttle_range": [45, 100],
+                "boost_offset": 3,
+                "afr_offset": -0.4,
+                "timing_offset": 1.0
+            },
+            "mild": {
+                "throttle_change_probability": 0.05,
+                "throttle_range": [20, 80],
+                "boost_offset": 0,
+                "afr_offset": 0.0,
+                "timing_offset": 0.0
+            },
+            "eco": {
+                "throttle_change_probability": 0.04,
+                "throttle_range": [5, 55],
+                "boost_offset": -2,
+                "afr_offset": 0.4,
+                "timing_offset": -1.0
+            }
+        }
+        self.autonomous_control = {"enabled": True, "profile": "mild"}
+        
+        # Real-time full motion and air-curve logging
+        self.motion_log = []
+        self.air_curve_map = []
+        self.last_motion_sample = {"rpm": 0, "speed": 0, "throttle_position": 0}
+        
     def start(self):
         """Start the engine"""
         self.engine_on = True
@@ -98,10 +138,20 @@ class VehicleSimulator:
         """Update telemetry based on driving conditions"""
         if not self.engine_on:
             return
+        
+        ai_profile_name = self.autonomous_control["profile"]
+        ai_profile = self.ai_profiles.get(ai_profile_name, self.ai_profiles["mild"])
             
         # Simulate throttle input (random driving pattern)
-        if random.random() < 0.05:  # 5% chance to change throttle
-            self.throttle_input = random.uniform(0, 100)
+        throttle_change_probability = 0.05
+        throttle_min = 0
+        throttle_max = 100
+        if self.autonomous_control["enabled"]:
+            throttle_change_probability = ai_profile["throttle_change_probability"]
+            throttle_min, throttle_max = ai_profile["throttle_range"]
+        
+        if random.random() < throttle_change_probability:
+            self.throttle_input = random.uniform(throttle_min, throttle_max)
             
         self.telemetry["throttle_position"] = self.throttle_input
         
@@ -123,7 +173,9 @@ class VehicleSimulator:
             
         # Boost calculation (turbo)
         if self.throttle_input > 30 and self.telemetry["rpm"] > 2500:
-            boost_target = (self.throttle_input / 100) * self.tune.get("boost_target", 12)
+            ai_boost_offset = ai_profile["boost_offset"] if self.autonomous_control["enabled"] else 0
+            boost_ceiling = max(0, self.tune.get("boost_target", 12) + ai_boost_offset)
+            boost_target = (self.throttle_input / 100) * boost_ceiling
             self.telemetry["boost"] += (boost_target - self.telemetry["boost"]) * 0.05
         else:
             self.telemetry["boost"] *= 0.9  # Boost decay
@@ -132,13 +184,16 @@ class VehicleSimulator:
         self.telemetry["map"] = 14.7 + self.telemetry["boost"]
         
         # AFR calculation (richer under load)
-        base_afr = self.tune["afr_target"]
+        ai_afr_offset = ai_profile["afr_offset"] if self.autonomous_control["enabled"] else 0
+        base_afr = clamp(self.tune["afr_target"] + ai_afr_offset, self.limits["min_afr"], self.limits["max_afr"])
         if self.throttle_input > 70 and self.telemetry["boost"] > 5:
             target_afr = 11.5  # Rich for power/safety
         elif self.throttle_input < 20:
             target_afr = 15.5  # Lean for economy
         else:
             target_afr = base_afr
+        
+        target_afr = clamp(target_afr, self.limits["min_afr"], self.limits["max_afr"])
             
         self.telemetry["afr"] += (target_afr - self.telemetry["afr"]) * 0.1
         self.telemetry["lambda"] = self.telemetry["afr"] / 14.7
@@ -178,7 +233,8 @@ class VehicleSimulator:
             self.telemetry["ignition_timing"] -= 2  # Pull timing on knock
             
         # Ignition timing
-        base_timing = 15 + self.tune["timing_adjustment"]
+        ai_timing_offset = ai_profile["timing_offset"] if self.autonomous_control["enabled"] else 0
+        base_timing = 15 + self.tune["timing_adjustment"] + ai_timing_offset
         if self.telemetry["boost"] > 8:
             base_timing -= (self.telemetry["boost"] - 8) * 0.5  # Retard under boost
         self.telemetry["ignition_timing"] = base_timing
@@ -190,6 +246,42 @@ class VehicleSimulator:
         # Add realistic noise
         for key in ["rpm", "afr", "boost", "oil_pressure"]:
             self.telemetry[key] += random.uniform(-0.5, 0.5)
+        
+        self.log_motion(ai_profile_name)
+    
+    def log_motion(self, ai_profile_name):
+        """Keep real-time motion and MAP/AFR curve logs"""
+        now = datetime.now().strftime(TIMESTAMP_FORMAT)
+        motion_entry = {
+            "timestamp": now,
+            "rpm": round(self.telemetry["rpm"], 1),
+            "speed": round(self.telemetry["speed"], 1),
+            "throttle_position": round(self.telemetry["throttle_position"], 1),
+            "rpm_delta": round(self.telemetry["rpm"] - self.last_motion_sample["rpm"], 1),
+            "speed_delta": round(self.telemetry["speed"] - self.last_motion_sample["speed"], 1),
+            "throttle_delta": round(self.telemetry["throttle_position"] - self.last_motion_sample["throttle_position"], 1),
+            "ai_profile": ai_profile_name
+        }
+        
+        self.motion_log.append(motion_entry)
+        if len(self.motion_log) > MAX_MOTION_LOG_SIZE:
+            self.motion_log.pop(0)
+        
+        self.air_curve_map.append({
+            "timestamp": now,
+            "map": round(self.telemetry["map"], 2),
+            "afr": round(self.telemetry["afr"], 2),
+            "throttle": round(self.telemetry["throttle_position"], 1),
+            "ai_profile": ai_profile_name
+        })
+        if len(self.air_curve_map) > MAX_MOTION_LOG_SIZE:
+            self.air_curve_map.pop(0)
+        
+        self.last_motion_sample = {
+            "rpm": self.telemetry["rpm"],
+            "speed": self.telemetry["speed"],
+            "throttle_position": self.telemetry["throttle_position"]
+        }
             
     def check_safety(self):
         """Check for dangerous conditions"""
@@ -230,6 +322,9 @@ def telemetry_thread():
                 "telemetry": vehicle.telemetry,
                 "tune": vehicle.tune,
                 "safety": safety,
+                "autonomous_control": vehicle.autonomous_control,
+                "motion_log": vehicle.motion_log[-MOTION_LOG_STREAM_WINDOW:],
+                "air_curve_map": vehicle.air_curve_map[-AIR_CURVE_STREAM_WINDOW:],
                 "timestamp": datetime.now().isoformat()
             }
             
@@ -302,13 +397,41 @@ def set_custom_tune():
     vehicle.tune.update(data)
     return jsonify({"status": "success", "tune": vehicle.tune})
 
+@app.route('/api/ai/control', methods=['GET'])
+def get_ai_control():
+    return jsonify({
+        "status": "success",
+        "autonomous_control": vehicle.autonomous_control,
+        "profiles": list(vehicle.ai_profiles.keys())
+    })
+
+@app.route('/api/ai/control', methods=['POST'])
+def set_ai_control():
+    data = request.json or {}
+    profile = data.get("profile", vehicle.autonomous_control["profile"])
+    enabled = data.get("enabled", vehicle.autonomous_control["enabled"])
+    
+    if profile not in vehicle.ai_profiles:
+        return jsonify({"status": "error", "message": "Unsupported AI profile"}), 400
+    
+    vehicle.autonomous_control.update({
+        "profile": profile,
+        "enabled": bool(enabled)
+    })
+    
+    return jsonify({
+        "status": "success",
+        "autonomous_control": vehicle.autonomous_control
+    })
+
 @app.route('/api/status', methods=['GET'])
 def get_status():
     return jsonify({
         "engine_on": vehicle.engine_on,
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
-        "engine_config": vehicle.engine_config
+        "engine_config": vehicle.engine_config,
+        "autonomous_control": vehicle.autonomous_control
     })
 
 @socketio.on('connect')

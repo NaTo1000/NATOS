@@ -301,6 +301,35 @@
             color: #00ff88;
             font-weight: bold;
         }
+        
+        .motion-log {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .motion-log h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+        
+        .motion-log-list {
+            list-style: none;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        
+        .motion-log-list li {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ddd;
+            font-size: 0.9em;
+            border-left: 3px solid rgba(0, 255, 136, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -329,10 +358,10 @@
             
             <div class="control-card">
                 <h3>🎯 Tuning Mode</h3>
-                <button class="btn btn-mode active" onclick="setMode('stock')" id="mode-stock">Stock</button>
-                <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
-                <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
-                <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode tune-mode-btn active" onclick="setMode('stock')" id="mode-stock">Stock</button>
+                <button class="btn btn-mode tune-mode-btn" onclick="setMode('economy')" id="mode-economy">Economy</button>
+                <button class="btn btn-mode tune-mode-btn" onclick="setMode('performance')" id="mode-performance">Performance</button>
+                <button class="btn btn-mode tune-mode-btn" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
             </div>
             
             <div class="control-card">
@@ -340,6 +369,15 @@
                 <button class="btn btn-mode" onclick="openAITuner()">Launch AI Tuner</button>
                 <button class="btn btn-mode" onclick="researchEngine()">Research Engine</button>
                 <button class="btn btn-mode" onclick="optimizeTune()">Optimize Tune</button>
+            </div>
+            
+            <div class="control-card">
+                <h3>🧠 Autonomous AI Control</h3>
+                <div style="margin-bottom: 12px; color: #aaa;">Status: <span id="ai-control-status" style="color:#00ff88;">ENABLED</span></div>
+                <button class="btn btn-mode active ai-profile-btn" onclick="setAutonomousProfile('mild')" id="ai-mode-mild">Mild</button>
+                <button class="btn btn-mode ai-profile-btn" onclick="setAutonomousProfile('aggressive')" id="ai-mode-aggressive">Aggressive</button>
+                <button class="btn btn-mode ai-profile-btn" onclick="setAutonomousProfile('eco')" id="ai-mode-eco">Eco</button>
+                <button class="btn btn-mode" onclick="toggleAutonomousControl()" id="ai-control-toggle">Disable Autonomous AI</button>
             </div>
         </div>
         
@@ -500,14 +538,29 @@
                 <h3>⚡ Power Parameters</h3>
                 <canvas id="powerChart"></canvas>
             </div>
+            
+            <div class="chart-card">
+                <h3>🛰️ Real-Time Air Curve Map (MAP vs AFR)</h3>
+                <canvas id="airCurveChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="motion-log">
+            <h3>🎞️ Full Motion Log</h3>
+            <ul class="motion-log-list" id="motionLogList">
+                <li>Waiting for live telemetry...</li>
+            </ul>
         </div>
     </div>
     
     <script>
         const socket = io();
+        let autonomousControlState = { enabled: true, profile: 'mild' };
         
         // Chart data storage
         const maxDataPoints = 50;
+        const THROTTLE_TO_RADIUS_SCALE = 18;
+        const MAX_MOTION_LOG_DISPLAY = 8;
         const chartData = {
             labels: [],
             rpm: [],
@@ -517,6 +570,7 @@
             egt: [],
             iat: [],
             afr: [],
+            map: [],
             lambda: [],
             timing: [],
             throttle: []
@@ -631,12 +685,48 @@
             }
         });
         
+        const airCurveChart = new Chart(document.getElementById('airCurveChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'MAP / AFR Curve',
+                    data: [],
+                    showLine: true,
+                    borderColor: '#00ddff',
+                    backgroundColor: 'rgba(0, 221, 255, 0.35)',
+                    pointRadius: (ctx) => Math.max(3, (ctx.raw?.throttle || 0) / THROTTLE_TO_RADIUS_SCALE),
+                    tension: 0.25
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { labels: { color: '#fff' } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw || {};
+                                return `MAP ${point.x?.toFixed?.(1) ?? point.x} PSI | AFR ${point.y?.toFixed?.(2) ?? point.y} | Throttle ${point.throttle ?? 0}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'MAP (PSI)', color: '#00ddff' }, ticks: { color: '#fff' } },
+                    y: { title: { display: true, text: 'AFR', color: '#00ff88' }, ticks: { color: '#fff' } }
+                }
+            }
+        });
+        
         // Socket event handlers
         socket.on('telemetry_update', function(data) {
             updateTelemetry(data.telemetry);
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
             updateCharts(data.telemetry);
+            renderAutonomousControl(data.autonomous_control);
+            updateMotionLog(data.motion_log || []);
+            updateAirCurveMap(data.air_curve_map || []);
         });
         
         function updateTelemetry(telemetry) {
@@ -732,6 +822,7 @@
             chartData.egt.push(telemetry.egt);
             chartData.iat.push(telemetry.iat);
             chartData.afr.push(telemetry.afr);
+            chartData.map.push(telemetry.map);
             chartData.lambda.push(telemetry.lambda);
             chartData.timing.push(telemetry.ignition_timing);
             chartData.throttle.push(telemetry.throttle_position);
@@ -746,6 +837,7 @@
                 chartData.egt.shift();
                 chartData.iat.shift();
                 chartData.afr.shift();
+                chartData.map.shift();
                 chartData.lambda.shift();
                 chartData.timing.shift();
                 chartData.throttle.shift();
@@ -755,6 +847,45 @@
             tempChart.update('none');
             afrChart.update('none');
             powerChart.update('none');
+        }
+        
+        function updateAirCurveMap(airCurveMap) {
+            const curveData = airCurveMap.map(point => ({
+                x: point.map,
+                y: point.afr,
+                throttle: point.throttle
+            }));
+            airCurveChart.data.datasets[0].data = curveData;
+            airCurveChart.update('none');
+        }
+        
+        function updateMotionLog(motionLog) {
+            const list = document.getElementById('motionLogList');
+            if (!motionLog.length) {
+                list.innerHTML = '<li>Waiting for live telemetry...</li>';
+                return;
+            }
+            
+            const recent = motionLog.slice(-MAX_MOTION_LOG_DISPLAY).reverse();
+            list.innerHTML = '';
+            recent.forEach(entry => {
+                const item = document.createElement('li');
+                const profile = String(entry.ai_profile || '').toUpperCase();
+                item.textContent = `${entry.timestamp} [${profile}] RPM Δ${entry.rpm_delta} rpm | Speed Δ${entry.speed_delta} mph | Throttle Δ${entry.throttle_delta}%`;
+                list.appendChild(item);
+            });
+        }
+        
+        function renderAutonomousControl(controlState) {
+            if (!controlState) return;
+            autonomousControlState = controlState;
+            document.getElementById('ai-control-status').textContent = controlState.enabled ? 'ENABLED' : 'DISABLED';
+            document.getElementById('ai-control-status').style.color = controlState.enabled ? '#00ff88' : '#ff4444';
+            document.getElementById('ai-control-toggle').textContent = controlState.enabled ? 'Disable Autonomous AI' : 'Enable Autonomous AI';
+            
+            document.querySelectorAll('.ai-profile-btn').forEach(btn => btn.classList.remove('active'));
+            const profileBtn = document.getElementById(`ai-mode-${controlState.profile}`);
+            if (profileBtn) profileBtn.classList.add('active');
         }
         
         // Control functions
@@ -786,10 +917,45 @@
             });
             
             // Update button states
-            document.querySelectorAll('.btn-mode').forEach(btn => {
+            document.querySelectorAll('.tune-mode-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             document.getElementById('mode-' + mode).classList.add('active');
+        }
+        
+        async function setAutonomousProfile(profile) {
+            const response = await fetch('/api/ai/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile: profile, enabled: true })
+            });
+            if (!response.ok) {
+                alert('Failed to set autonomous profile');
+                return;
+            }
+            const data = await response.json();
+            if (data.status === 'success') {
+                renderAutonomousControl(data.autonomous_control);
+            }
+        }
+        
+        async function toggleAutonomousControl() {
+            const response = await fetch('/api/ai/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    profile: autonomousControlState.profile || 'mild',
+                    enabled: !autonomousControlState.enabled
+                })
+            });
+            if (!response.ok) {
+                alert('Failed to update autonomous control');
+                return;
+            }
+            const data = await response.json();
+            if (data.status === 'success') {
+                renderAutonomousControl(data.autonomous_control);
+            }
         }
         
         function openAITuner() {
