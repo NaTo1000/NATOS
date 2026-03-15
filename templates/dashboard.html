@@ -323,6 +323,13 @@
                     <span class="status-indicator status-off" id="engineStatus"></span>
                     <span id="engineStatusText">Engine: OFF</span>
                 </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em; display: block; margin-bottom: 5px;">Engine Profile:</label>
+                    <select id="engineProfileSelect" onchange="setEngineProfile(this.value)" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.6); color: #00ff88; border: 2px solid rgba(0,255,136,0.3); border-radius: 8px; font-size: 0.95em; cursor: pointer;">
+                        <option value="ls2" selected>GM LS2 6.0L V8</option>
+                        <option value="2.0t_i4">2.0L Turbo I4</option>
+                    </select>
+                </div>
                 <button class="btn btn-start" onclick="startEngine()">Start Engine</button>
                 <button class="btn btn-stop" onclick="stopEngine()">Stop Engine</button>
             </div>
@@ -333,6 +340,7 @@
                 <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
                 <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
                 <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('ls2_race')" id="mode-ls2_race" style="display:block;">Race Cam 🏁</button>
             </div>
             
             <div class="control-card">
@@ -340,6 +348,69 @@
                 <button class="btn btn-mode" onclick="openAITuner()">Launch AI Tuner</button>
                 <button class="btn btn-mode" onclick="researchEngine()">Research Engine</button>
                 <button class="btn btn-mode" onclick="optimizeTune()">Optimize Tune</button>
+            </div>
+        </div>
+        
+        <!-- LS2 Cam Spec & Fuel System Info -->
+        <div class="control-panel" id="ls2SpecPanel">
+            <div class="control-card">
+                <h3>🔩 Cam Specifications</h3>
+                <div class="tune-param">
+                    <span class="tune-param-label">Profile:</span>
+                    <span class="tune-param-value" id="cam-profile-name">LS2 Stock Cam</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Intake Duration:</span>
+                    <span class="tune-param-value" id="cam-intake-dur">204° @ 0.050"</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Exhaust Duration:</span>
+                    <span class="tune-param-value" id="cam-exhaust-dur">211° @ 0.050"</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Intake Lift:</span>
+                    <span class="tune-param-value" id="cam-intake-lift">0.525"</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Exhaust Lift:</span>
+                    <span class="tune-param-value" id="cam-exhaust-lift">0.525"</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">LSA:</span>
+                    <span class="tune-param-value" id="cam-lsa">116°</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">RPM Range:</span>
+                    <span class="tune-param-value" id="cam-rpm-range">1000 - 6000</span>
+                </div>
+            </div>
+            
+            <div class="control-card">
+                <h3>⛽ Fuel System</h3>
+                <div class="tune-param">
+                    <span class="tune-param-label">Injector Size:</span>
+                    <span class="tune-param-value" id="fuel-injector-size">28 lb/hr</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Rail Pressure:</span>
+                    <span class="tune-param-value" id="fuel-rail-pressure">58 PSI</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Pump Flow:</span>
+                    <span class="tune-param-value" id="fuel-pump-flow">85 GPH</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">System Type:</span>
+                    <span class="tune-param-value" id="fuel-system-type">Returnless</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Max Supported HP:</span>
+                    <span class="tune-param-value" id="fuel-max-hp">400 HP</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">E85 Compatible:</span>
+                    <span class="tune-param-value" id="fuel-e85">No</span>
+                </div>
             </div>
         </div>
         
@@ -358,9 +429,9 @@
                 <span class="tune-param-label">Timing Adjustment:</span>
                 <span class="tune-param-value" id="tune-timing">0°</span>
             </div>
-            <div class="tune-param">
+            <div class="tune-param" id="tune-boost-row">
                 <span class="tune-param-label">Boost Target:</span>
-                <span class="tune-param-value" id="tune-boost">12 PSI</span>
+                <span class="tune-param-value" id="tune-boost">0 PSI (N/A)</span>
             </div>
             <div class="tune-param">
                 <span class="tune-param-label">AFR Target:</span>
@@ -368,7 +439,15 @@
             </div>
             <div class="tune-param">
                 <span class="tune-param-label">Rev Limit:</span>
-                <span class="tune-param-value" id="tune-revlimit">7000 RPM</span>
+                <span class="tune-param-value" id="tune-revlimit">6500 RPM</span>
+            </div>
+            <div class="tune-param" id="tune-cam-row">
+                <span class="tune-param-label">Cam Profile:</span>
+                <span class="tune-param-value" id="tune-cam">LS2 Stock</span>
+            </div>
+            <div class="tune-param" id="tune-fuelsys-row">
+                <span class="tune-param-label">Fuel System:</span>
+                <span class="tune-param-value" id="tune-fuelsys">Stock</span>
             </div>
         </div>
         
@@ -688,9 +767,18 @@
             document.getElementById('tune-mode').textContent = tune.mode.toUpperCase();
             document.getElementById('tune-fuel').textContent = tune.fuel_map_adjustment + '%';
             document.getElementById('tune-timing').textContent = tune.timing_adjustment + '°';
-            document.getElementById('tune-boost').textContent = tune.boost_target + ' PSI';
+            if (currentEngineProfile === 'ls2') {
+                document.getElementById('tune-boost').textContent = 'N/A (Naturally Aspirated)';
+            } else {
+                document.getElementById('tune-boost').textContent = tune.boost_target + ' PSI';
+            }
             document.getElementById('tune-afr').textContent = tune.afr_target.toFixed(1);
             document.getElementById('tune-revlimit').textContent = tune.rev_limit + ' RPM';
+            
+            // Update LS2 cam and fuel system display
+            if (currentEngineProfile === 'ls2') {
+                updateCamFuelDisplay(tune);
+            }
         }
         
         function updateSafetyAlerts(safety) {
@@ -758,6 +846,93 @@
         }
         
         // Control functions
+        let currentEngineProfile = 'ls2';
+        
+        // Cam profile data for UI display
+        const camProfiles = {
+            "ls2_stock": { name: "LS2 Stock Cam", intakeDur: 204, exhaustDur: 211, intakeLift: 0.525, exhaustLift: 0.525, lsa: 116, rpmRange: "1000 - 6000" },
+            "ls2_street_performance": { name: "Street Performance", intakeDur: 218, exhaustDur: 228, intakeLift: 0.560, exhaustLift: 0.560, lsa: 112, rpmRange: "1500 - 6500" },
+            "ls2_hot_street": { name: "Hot Street / Mild Race", intakeDur: 228, exhaustDur: 236, intakeLift: 0.588, exhaustLift: 0.588, lsa: 110, rpmRange: "2000 - 6800" },
+            "ls2_race": { name: "Full Race Cam", intakeDur: 242, exhaustDur: 248, intakeLift: 0.617, exhaustLift: 0.617, lsa: 108, rpmRange: "3000 - 7200" }
+        };
+        
+        const fuelSystems = {
+            "ls2_stock": { injector: 28, pressure: 58, pump: 85, type: "Returnless", maxHp: 400, e85: false },
+            "ls2_stage1": { injector: 36, pressure: 58, pump: 110, type: "Returnless", maxHp: 500, e85: false },
+            "ls2_stage2": { injector: 42, pressure: 58, pump: 155, type: "Return-style", maxHp: 600, e85: true },
+            "ls2_race": { injector: 52, pressure: 62, pump: 200, type: "Return-style", maxHp: 750, e85: true }
+        };
+        
+        async function setEngineProfile(profile) {
+            const response = await fetch('/api/engine/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile: profile })
+            });
+            const data = await response.json();
+            currentEngineProfile = profile;
+            
+            // Show/hide LS2-specific panels
+            const ls2Panel = document.getElementById('ls2SpecPanel');
+            const raceBtn = document.getElementById('mode-ls2_race');
+            const boostRow = document.getElementById('tune-boost-row');
+            const camRow = document.getElementById('tune-cam-row');
+            const fuelsysRow = document.getElementById('tune-fuelsys-row');
+            
+            if (profile === 'ls2') {
+                ls2Panel.style.display = 'grid';
+                raceBtn.style.display = 'block';
+                camRow.style.display = 'flex';
+                fuelsysRow.style.display = 'flex';
+            } else {
+                ls2Panel.style.display = 'none';
+                raceBtn.style.display = 'none';
+                camRow.style.display = 'none';
+                fuelsysRow.style.display = 'none';
+            }
+            
+            // Reset mode buttons
+            document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('mode-stock').classList.add('active');
+        }
+        
+        function updateCamFuelDisplay(tune) {
+            const camKey = tune.cam_profile || 'ls2_stock';
+            const fuelKey = tune.fuel_system || 'ls2_stock';
+            
+            const cam = camProfiles[camKey];
+            const fuel = fuelSystems[fuelKey];
+            
+            if (cam) {
+                document.getElementById('cam-profile-name').textContent = cam.name;
+                document.getElementById('cam-intake-dur').textContent = cam.intakeDur + '° @ 0.050"';
+                document.getElementById('cam-exhaust-dur').textContent = cam.exhaustDur + '° @ 0.050"';
+                document.getElementById('cam-intake-lift').textContent = cam.intakeLift.toFixed(3) + '"';
+                document.getElementById('cam-exhaust-lift').textContent = cam.exhaustLift.toFixed(3) + '"';
+                document.getElementById('cam-lsa').textContent = cam.lsa + '°';
+                document.getElementById('cam-rpm-range').textContent = cam.rpmRange;
+            }
+            
+            if (fuel) {
+                document.getElementById('fuel-injector-size').textContent = fuel.injector + ' lb/hr';
+                document.getElementById('fuel-rail-pressure').textContent = fuel.pressure + ' PSI';
+                document.getElementById('fuel-pump-flow').textContent = fuel.pump + ' GPH';
+                document.getElementById('fuel-system-type').textContent = fuel.type;
+                document.getElementById('fuel-max-hp').textContent = fuel.maxHp + ' HP';
+                document.getElementById('fuel-e85').textContent = fuel.e85 ? 'Yes' : 'No';
+            }
+            
+            // Update tune info display
+            if (tune.cam_profile) {
+                const camName = cam ? cam.name : tune.cam_profile;
+                document.getElementById('tune-cam').textContent = camName;
+            }
+            if (tune.fuel_system) {
+                const fuelName = fuel ? fuel.type + ' (' + fuel.injector + ' lb/hr)' : tune.fuel_system;
+                document.getElementById('tune-fuelsys').textContent = fuelName;
+            }
+        }
+        
         async function startEngine() {
             const response = await fetch('/api/engine/start', { method: 'POST' });
             const data = await response.json();
@@ -772,9 +947,14 @@
         }
         
         async function setMode(mode) {
-            // Show warning for modified mode
+            // Show warning for modified/race modes
             if (mode === 'modified' || mode === 'performance') {
                 if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            }
+            if (mode === 'ls2_race') {
+                if (!confirm(`🏁 WARNING: RACE CAM mode is for race-only vehicles!\n\n• Full race cam (242°/248° duration)\n• Rough idle - NOT street legal\n• Requires upgraded valve springs\n• Requires solid roller lifters\n• Stage 2 fuel system (42 lb/hr injectors)\n\nFor track/dyno use only!`)) {
                     return;
                 }
             }
@@ -789,7 +969,8 @@
             document.querySelectorAll('.btn-mode').forEach(btn => {
                 btn.classList.remove('active');
             });
-            document.getElementById('mode-' + mode).classList.add('active');
+            const modeBtn = document.getElementById('mode-' + mode);
+            if (modeBtn) modeBtn.classList.add('active');
         }
         
         function openAITuner() {
