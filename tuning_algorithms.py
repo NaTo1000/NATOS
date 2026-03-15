@@ -32,6 +32,10 @@ GAS_CONSTANT_AIR = 287.05          # J/(kg·K)
 AIR_DENSITY_STP = 1.225            # kg/m³ at 15 °C / 101.325 kPa
 KPA_PER_PSI = 6.89476
 ATMOSPHERIC_KPA = 101.325
+STANDARD_TEMP_KELVIN = 293.15      # 20 °C – standard reference temperature
+MIN_VACUUM_KPA = 20.0              # minimum manifold vacuum ~20 kPa
+INJECTOR_FLOW_MG_PER_MS = 3.5     # ~250 cc/min injector at 3 bar rail pressure
+GASOLINE_DENSITY_MG_CC = 750.0    # gasoline ≈ 0.75 g/cc
 
 
 def _sorted_keys(d: Dict[int, Any]) -> List[int]:
@@ -804,11 +808,11 @@ class VolumetricEfficiencyModel:
 
         iat_kelvin = iat_celsius + 273.15
         if iat_kelvin <= 0:
-            iat_kelvin = 293.15
+            iat_kelvin = STANDARD_TEMP_KELVIN
 
         # Ideal air mass per cycle (one intake stroke per 2 revs in 4-stroke)
         disp_m3 = displacement_litres / 1000.0
-        theoretical_mass = (ATMOSPHERIC_KPA * 1000.0 * disp_m3) / (GAS_CONSTANT_AIR * 293.15)
+        theoretical_mass = (ATMOSPHERIC_KPA * 1000.0 * disp_m3) / (GAS_CONSTANT_AIR * STANDARD_TEMP_KELVIN)
 
         # Actual air mass using MAP & IAT
         actual_mass = (map_pressure_kpa * 1000.0 * disp_m3) / (GAS_CONSTANT_AIR * iat_kelvin)
@@ -854,7 +858,7 @@ class VolumetricEfficiencyModel:
 
         iat_k = iat_celsius + 273.15
         map_kpa = ATMOSPHERIC_KPA * (load_pct / 100.0)
-        map_kpa = max(20.0, map_kpa)  # Minimum vacuum ~20 kPa
+        map_kpa = max(MIN_VACUUM_KPA, map_kpa)  # Minimum vacuum
 
         disp_m3 = displacement_litres / 1000.0
         air_mass_per_cycle_kg = (map_kpa * 1000.0 * disp_m3 * ve) / (GAS_CONSTANT_AIR * iat_k)
@@ -863,14 +867,12 @@ class VolumetricEfficiencyModel:
         fuel_mass_mg = air_mass_mg / target_afr
 
         # Injector pulse width (assume ~250 cc/min injector flow at 3 bar)
-        injector_flow_mg_per_ms = 3.5
-        injector_pw_ms = fuel_mass_mg / injector_flow_mg_per_ms if injector_flow_mg_per_ms > 0 else 0.0
+        injector_pw_ms = fuel_mass_mg / INJECTOR_FLOW_MG_PER_MS if INJECTOR_FLOW_MG_PER_MS > 0 else 0.0
 
         # Total fuel flow: cycles per minute = RPM / 2 (4-stroke)
         cycles_per_min = rpm / 2.0
         fuel_mass_per_min_mg = fuel_mass_mg * cycles_per_min
-        fuel_density_mg_per_cc = 750.0  # gasoline ≈ 0.75 g/cc
-        fuel_flow_cc_min = fuel_mass_per_min_mg / fuel_density_mg_per_cc
+        fuel_flow_cc_min = fuel_mass_per_min_mg / GASOLINE_DENSITY_MG_CC
 
         return {
             "air_mass_mg": round(air_mass_mg, 2),

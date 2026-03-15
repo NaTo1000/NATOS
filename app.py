@@ -358,7 +358,7 @@ def get_starting_point(category):
 def overlay_torque():
     """Overlay torque curves for specified engines."""
     data = request.json or {}
-    engine_ids = data.get('engine_ids', [e['engine_id'] for e in perf_db.list_engines()])
+    engine_ids = data.get('engine_ids') or [e['engine_id'] for e in perf_db.list_engines()]
     result = overlay_analyzer.overlay_torque_curves(engine_ids)
     return jsonify({"envelope": result.get("envelope", {})})
 
