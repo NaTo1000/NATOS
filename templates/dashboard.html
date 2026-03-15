@@ -301,6 +301,56 @@
             color: #00ff88;
             font-weight: bold;
         }
+
+        .chat-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chat-messages {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .chat-message {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+        }
+
+        .chat-message.user {
+            background: rgba(0, 255, 136, 0.15);
+            border-left: 3px solid #00ff88;
+        }
+
+        .chat-message.assistant {
+            background: rgba(0, 170, 255, 0.15);
+            border-left: 3px solid #00aaff;
+        }
+
+        .chat-controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -501,10 +551,27 @@
                 <canvas id="powerChart"></canvas>
             </div>
         </div>
+
+        <div class="chat-panel" id="chatPanel" style="display: none;">
+            <h3 style="color: #00ff88; margin-bottom: 10px;">🎙️ Voice Chat + Memory</h3>
+            <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-controls">
+                <input id="chatInput" class="chat-input" type="text" placeholder="Type a message or command..." />
+                <button class="btn btn-mode" onclick="toggleVoiceControl()" id="voiceBtn">🎤 Voice</button>
+                <button class="btn btn-start" onclick="sendChatMessage()">Send</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-stop" onclick="clearChatMemory()">Clear Memory</button>
+            </div>
+        </div>
     </div>
     
     <script>
-        const socket = io();
+        const socket = typeof io === 'function' ? io() : { on: () => {}, emit: () => {} };
+        const chartsAvailable = typeof Chart !== 'undefined';
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let listening = false;
         
         // Chart data storage
         const maxDataPoints = 50;
@@ -523,7 +590,7 @@
         };
         
         // Initialize charts
-        const rpmBoostChart = new Chart(document.getElementById('rpmBoostChart'), {
+        const rpmBoostChart = chartsAvailable ? new Chart(document.getElementById('rpmBoostChart'), {
             type: 'line',
             data: {
                 labels: chartData.labels,
@@ -550,9 +617,9 @@
                 },
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
-        });
+        }) : { update: () => {} };
         
-        const tempChart = new Chart(document.getElementById('tempChart'), {
+        const tempChart = chartsAvailable ? new Chart(document.getElementById('tempChart'), {
             type: 'line',
             data: {
                 labels: chartData.labels,
@@ -578,9 +645,9 @@
                 plugins: { legend: { labels: { color: '#fff' } } },
                 scales: { y: { ticks: { color: '#fff' } } }
             }
-        });
+        }) : { update: () => {} };
         
-        const afrChart = new Chart(document.getElementById('afrChart'), {
+        const afrChart = chartsAvailable ? new Chart(document.getElementById('afrChart'), {
             type: 'line',
             data: {
                 labels: chartData.labels,
@@ -606,9 +673,9 @@
                 },
                 plugins: { legend: { labels: { color: '#fff' } } }
             }
-        });
+        }) : { update: () => {} };
         
-        const powerChart = new Chart(document.getElementById('powerChart'), {
+        const powerChart = chartsAvailable ? new Chart(document.getElementById('powerChart'), {
             type: 'line',
             data: {
                 labels: chartData.labels,
@@ -629,7 +696,7 @@
                 plugins: { legend: { labels: { color: '#fff' } } },
                 scales: { y: { ticks: { color: '#fff' } } }
             }
-        });
+        }) : { update: () => {} };
         
         // Socket event handlers
         socket.on('telemetry_update', function(data) {
@@ -722,6 +789,9 @@
         }
         
         function updateCharts(telemetry) {
+            if (!chartsAvailable) {
+                return;
+            }
             const now = new Date().toLocaleTimeString();
             
             chartData.labels.push(now);
@@ -793,16 +863,118 @@
         }
         
         function openAITuner() {
-            alert('🤖 AI Tuning Agent\n\nThis feature would connect to an AI agent that:\n• Researches your specific engine online\n• Analyzes your driving patterns\n• Suggests optimal tune parameters\n• Learns from professional tuning databases\n\nComing in next iteration!');
+            const panel = document.getElementById('chatPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') {
+                loadChatHistory();
+            }
         }
         
         function researchEngine() {
-            alert('🔍 Engine Research\n\nThis would search online for:\n• Factory specifications\n• Common modifications\n• Known issues and solutions\n• Dyno results from similar builds\n• Professional tuning recommendations\n\nIntegration pending!');
+            document.getElementById('chatPanel').style.display = 'block';
+            document.getElementById('chatInput').value = 'show status';
+            sendChatMessage();
         }
         
         function optimizeTune() {
-            alert('⚡ Optimize Tune\n\nAI would analyze:\n• Current driving patterns\n• Temperature trends\n• Knock events\n• Fuel efficiency\n• Performance metrics\n\nThen suggest tune adjustments!\n\nFeature in development!');
+            document.getElementById('chatPanel').style.display = 'block';
+            document.getElementById('chatInput').value = 'set mode performance';
+            sendChatMessage();
         }
+
+        function appendChatMessage(role, message) {
+            const messages = document.getElementById('chatMessages');
+            const entry = document.createElement('div');
+            entry.className = `chat-message ${role}`;
+            entry.textContent = `${role === 'user' ? 'You' : 'NATOS'}: ${message}`;
+            messages.appendChild(entry);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        async function loadChatHistory() {
+            const response = await fetch('/api/chat/history');
+            const data = await response.json();
+            const messages = document.getElementById('chatMessages');
+            messages.innerHTML = '';
+            data.history.forEach(item => appendChatMessage(item.role, item.message));
+        }
+
+        async function sendChatMessage(messageOverride) {
+            const input = document.getElementById('chatInput');
+            const message = (messageOverride || input.value).trim();
+            if (!message) return;
+
+            appendChatMessage('user', message);
+            input.value = '';
+
+            const response = await fetch('/api/chat/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await response.json();
+            appendChatMessage('assistant', data.response);
+            speakResponse(data.response);
+        }
+
+        async function clearChatMemory() {
+            await fetch('/api/chat/clear', { method: 'POST' });
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+
+        function initializeVoiceControl() {
+            if (!SpeechRecognition) {
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('chatInput').value = transcript;
+                sendChatMessage(transcript);
+            };
+
+            recognition.onend = function() {
+                listening = false;
+                document.getElementById('voiceBtn').textContent = '🎤 Voice';
+            };
+        }
+
+        function toggleVoiceControl() {
+            if (!recognition) {
+                alert('Voice recognition is not available in this browser.');
+                return;
+            }
+
+            if (!listening) {
+                listening = true;
+                document.getElementById('voiceBtn').textContent = '🛑 Stop';
+                recognition.start();
+            } else {
+                recognition.stop();
+            }
+        }
+
+        function speakResponse(text) {
+            if (!window.speechSynthesis) {
+                return;
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        document.getElementById('chatInput').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        initializeVoiceControl();
     </script>
 </body>
 </html>
