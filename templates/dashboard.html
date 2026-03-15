@@ -1085,10 +1085,10 @@
         function updateVoicePeers(peers) {
             const container = document.getElementById('voicePeers');
             container.innerHTML = peers.map(p => {
-                let cls = 'voice-peer';
-                if (p.speaking) cls += ' speaking';
-                if (p.muted) cls += ' muted';
-                return `<span class="${cls}">${p.muted ? '🔇' : '🎤'} ${p.name}</span>`;
+                const classes = ['voice-peer'];
+                if (p.speaking) classes.push('speaking');
+                if (p.muted) classes.push('muted');
+                return `<span class="${classes.join(' ')}">${p.muted ? '🔇' : '🎤'} ${p.name}</span>`;
             }).join('');
         }
 
@@ -1132,32 +1132,37 @@
         // ========================
         // System Monitor Functions
         // ========================
+        function renderTemperatures(temperatures) {
+            let html = '';
+            for (const [name, t] of Object.entries(temperatures)) {
+                const pct = Math.min(100, (t.current / (t.critical || 100)) * 100);
+                const color = pct > 80 ? '#ff4444' : pct > 60 ? '#ffaa00' : '#00ff88';
+                html += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${t.current}°C</span></div>`;
+                html += `<div class="temp-bar"><div class="temp-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
+            }
+            return html;
+        }
+
+        function renderVoltages(voltages) {
+            let html = '';
+            for (const [name, v] of Object.entries(voltages)) {
+                html += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${v.value}${v.unit}</span></div>`;
+            }
+            return html;
+        }
+
         async function refreshSysmon() {
             const res = await fetch('/api/sysmon/status');
             const data = await res.json();
             document.getElementById('sysHealth').textContent = data.health_score + '%';
             document.getElementById('sysCpu').textContent = (data.resources?.cpu_percent || 0) + '%';
             document.getElementById('sysMem').textContent = (data.resources?.memory_percent || 0) + '%';
-            // Temperatures
-            let tempHtml = '';
             if (data.temperatures) {
-                for (const [name, t] of Object.entries(data.temperatures)) {
-                    const pct = Math.min(100, (t.current / (t.critical || 100)) * 100);
-                    const color = pct > 80 ? '#ff4444' : pct > 60 ? '#ffaa00' : '#00ff88';
-                    tempHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${t.current}°C</span></div>`;
-                    tempHtml += `<div class="temp-bar"><div class="temp-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
-                }
+                document.getElementById('sysTemps').innerHTML = renderTemperatures(data.temperatures);
             }
-            document.getElementById('sysTemps').innerHTML = tempHtml;
-            // Voltages
-            let voltHtml = '';
             if (data.voltages) {
-                for (const [name, v] of Object.entries(data.voltages)) {
-                    voltHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${v.value}${v.unit}</span></div>`;
-                }
+                document.getElementById('sysVoltages').innerHTML = renderVoltages(data.voltages);
             }
-            document.getElementById('sysVoltages').innerHTML = voltHtml;
-            // BIOS
             if (data.bios) {
                 document.getElementById('sysBios').textContent = data.bios.bios_vendor + ' v' + data.bios.bios_version;
             }
@@ -1166,21 +1171,10 @@
         // Real-time system monitor updates via SocketIO
         socket.on('system_monitor_update', function(data) {
             if (data.temperatures) {
-                let tempHtml = '';
-                for (const [name, t] of Object.entries(data.temperatures)) {
-                    const pct = Math.min(100, (t.current / (t.critical || 100)) * 100);
-                    const color = pct > 80 ? '#ff4444' : pct > 60 ? '#ffaa00' : '#00ff88';
-                    tempHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${t.current}°C</span></div>`;
-                    tempHtml += `<div class="temp-bar"><div class="temp-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
-                }
-                document.getElementById('sysTemps').innerHTML = tempHtml;
+                document.getElementById('sysTemps').innerHTML = renderTemperatures(data.temperatures);
             }
             if (data.voltages) {
-                let voltHtml = '';
-                for (const [name, v] of Object.entries(data.voltages)) {
-                    voltHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${v.value}${v.unit}</span></div>`;
-                }
-                document.getElementById('sysVoltages').innerHTML = voltHtml;
+                document.getElementById('sysVoltages').innerHTML = renderVoltages(data.voltages);
             }
         });
 
