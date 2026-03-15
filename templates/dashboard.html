@@ -405,9 +405,9 @@
 
             <div class="control-card">
                 <h3>🏁 LS Engine Profile</h3>
-                <button class="btn btn-engine active" onclick="setEngineProfile('LS1')" id="profile-LS1">LS1 — 5.7L V8</button>
-                <button class="btn btn-engine" onclick="setEngineProfile('LS2')" id="profile-LS2">LS2 — 6.0L V8</button>
-                <button class="btn btn-engine" onclick="setEngineProfile('LS3')" id="profile-LS3">LS3 — 6.2L V8</button>
+                <button class="btn btn-engine active" onclick="setEngineProfile('ls1')" id="profile-ls1">LS1 — 5.7L V8</button>
+                <button class="btn btn-engine" onclick="setEngineProfile('ls2')" id="profile-ls2">LS2 — 6.0L V8</button>
+                <button class="btn btn-engine" onclick="setEngineProfile('ls3')" id="profile-ls3">LS3 — 6.2L V8</button>
             </div>
 
             <div class="control-card">
@@ -998,8 +998,8 @@
                 text.textContent = 'Nitrous: OFF';
                 tuneVal.textContent = 'OFF';
             }
-            if (nitrous.shot_size !== undefined) {
-                shotDisplay.textContent = 'Shot Size: ' + nitrous.shot_size + ' HP';
+            if (nitrous.shot_size_hp !== undefined) {
+                shotDisplay.textContent = 'Shot Size: ' + nitrous.shot_size_hp + ' HP';
             }
         }
         
@@ -1114,7 +1114,7 @@
         }
 
         async function setEngineProfile(profile) {
-            if (!confirm(`🏁 Switch to ${profile} engine profile?\n\nThis will update base maps and calibration for the ${profile} platform.`)) {
+            if (!confirm(`🏁 Switch to ${profile.toUpperCase()} engine profile?\n\nThis will update base maps and calibration for the ${profile.toUpperCase()} platform.`)) {
                 return;
             }
 
@@ -1127,13 +1127,13 @@
             // Update button states
             document.querySelectorAll('.btn-engine').forEach(btn => btn.classList.remove('active'));
             document.getElementById('profile-' + profile).classList.add('active');
-            document.getElementById('tune-engine-profile').textContent = profile;
+            document.getElementById('tune-engine-profile').textContent = profile.toUpperCase();
         }
 
         async function toggleMethInjection() {
             const response = await fetch('/api/meth/toggle', { method: 'POST' });
             const data = await response.json();
-            updateMethStatus(data);
+            if (data.meth_injection) updateMethStatus(data.meth_injection);
         }
 
         async function refillMethTank() {
@@ -1150,7 +1150,7 @@
             }
             const response = await fetch('/api/nitrous/toggle', { method: 'POST' });
             const data = await response.json();
-            updateNitrousStatus(data);
+            if (data.nitrous) updateNitrousStatus(data.nitrous);
         }
 
         async function refillNitrousBottle() {
