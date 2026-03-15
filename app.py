@@ -12,6 +12,7 @@ import threading
 import time
 import random
 import json
+import math
 from datetime import datetime
 
 app = Flask(__name__)
@@ -54,6 +55,8 @@ class VehicleSimulator:
             "ignition_timing": 15,  # degrees BTDC
             "injector_duty": 20,  # %
             "voltage": 14.2,
+            "torque_nm": 0,
+            "power_kw": 0,
         }
         
         # Tuning parameters
@@ -186,6 +189,15 @@ class VehicleSimulator:
         # Injector duty cycle
         duty = 20 + (load_factor * 60) + (self.tune["fuel_map_adjustment"])
         self.telemetry["injector_duty"] = min(95, max(5, duty))
+
+        # Derived torque and power (for power curve display)
+        rpm_ratio = self.telemetry["rpm"] / max(self.tune["rev_limit"], 1)
+        torque_curve = max(0.2, 1 - ((rpm_ratio - 0.55) / 0.55) ** 2)
+        base_torque_nm = self.engine_config["displacement"] * 140
+        boost_factor = 1 + (self.telemetry["boost"] / 14.7) * 0.6
+        throttle_factor = self.throttle_input / 100
+        self.telemetry["torque_nm"] = max(0, base_torque_nm * torque_curve * boost_factor * throttle_factor)
+        self.telemetry["power_kw"] = (self.telemetry["torque_nm"] * self.telemetry["rpm"] * 2 * math.pi) / 60000
         
         # Add realistic noise
         for key in ["rpm", "afr", "boost", "oil_pressure"]:
@@ -292,6 +304,15 @@ def set_tune_mode():
             "boost_target": 22,
             "afr_target": 11.8,
             "rev_limit": 7800,
+        })
+    elif mode == 'ls3_big_boost':
+        vehicle.tune.update({
+            "mode": "ls3_big_boost",
+            "fuel_map_adjustment": 18,
+            "timing_adjustment": 4,
+            "boost_target": 24,
+            "afr_target": 11.6,
+            "rev_limit": 7200,
         })
     
     return jsonify({"status": "success", "tune": vehicle.tune})
