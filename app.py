@@ -13,6 +13,10 @@ import time
 import random
 import json
 from datetime import datetime
+from voice_chat import VoiceChatManager
+from chaimera import ChaiMeraOrchestrator
+from portman_ai import PortManAI
+from system_monitor import SystemMonitor
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
@@ -216,8 +220,12 @@ class VehicleSimulator:
             
         return {"warnings": warnings, "critical": critical}
 
-# Global vehicle instance
+# Global instances
 vehicle = VehicleSimulator()
+voice_chat = VoiceChatManager()
+chaimera = ChaiMeraOrchestrator()
+portman = PortManAI()
+sys_monitor = SystemMonitor()
 
 def telemetry_thread():
     """Background thread for telemetry updates"""
@@ -236,6 +244,14 @@ def telemetry_thread():
             socketio.emit('telemetry_update', data)
         
         time.sleep(0.1)  # 10 Hz update rate
+
+def system_monitor_thread():
+    """Background thread for system monitoring updates"""
+    while True:
+        if sys_monitor.monitoring_active:
+            reading = sys_monitor.get_full_reading()
+            socketio.emit('system_monitor_update', reading)
+        time.sleep(2)  # 0.5 Hz update rate for system metrics
 
 @app.route('/')
 def index():
@@ -320,10 +336,187 @@ def handle_connect():
 def handle_disconnect():
     print('Client disconnected')
 
+# === Voice Chat Endpoints ===
+
+@app.route('/api/voice/rooms', methods=['GET'])
+def voice_list_rooms():
+    return jsonify(voice_chat.list_rooms())
+
+@app.route('/api/voice/room', methods=['POST'])
+def voice_create_room():
+    data = request.json or {}
+    room = voice_chat.create_room(data.get('name'))
+    return jsonify(room)
+
+@app.route('/api/voice/room/<room_id>/join', methods=['POST'])
+def voice_join_room(room_id):
+    data = request.json or {}
+    peer_id = data.get('peer_id', str(random.randint(1000, 9999)))
+    peer_name = data.get('peer_name', 'Anonymous')
+    result = voice_chat.join_room(room_id, peer_id, peer_name)
+    return jsonify(result)
+
+@app.route('/api/voice/room/<room_id>/leave', methods=['POST'])
+def voice_leave_room(room_id):
+    data = request.json or {}
+    peer_id = data.get('peer_id')
+    result = voice_chat.leave_room(room_id, peer_id)
+    return jsonify(result)
+
+@app.route('/api/voice/room/<room_id>/mute', methods=['POST'])
+def voice_toggle_mute(room_id):
+    data = request.json or {}
+    peer_id = data.get('peer_id')
+    result = voice_chat.toggle_mute(room_id, peer_id)
+    return jsonify(result)
+
+@app.route('/api/voice/status', methods=['GET'])
+def voice_status():
+    return jsonify(voice_chat.get_status())
+
+@socketio.on('voice_signal')
+def handle_voice_signal(data):
+    """Relay WebRTC signaling between peers."""
+    target = data.get('target')
+    if target:
+        emit('voice_signal', data, room=target)
+
+@socketio.on('voice_audio_level')
+def handle_audio_level(data):
+    voice_chat.update_audio_level(data.get('peer_id'), data.get('level', 0))
+
+# === CHAiMERA Orchestration Endpoints ===
+
+@app.route('/api/chaimera/start', methods=['POST'])
+def chaimera_start():
+    return jsonify(chaimera.start())
+
+@app.route('/api/chaimera/stop', methods=['POST'])
+def chaimera_stop():
+    return jsonify(chaimera.stop())
+
+@app.route('/api/chaimera/status', methods=['GET'])
+def chaimera_status():
+    return jsonify(chaimera.get_status())
+
+@app.route('/api/chaimera/health', methods=['GET'])
+def chaimera_health():
+    return jsonify(chaimera.health_check())
+
+@app.route('/api/chaimera/topology', methods=['GET'])
+def chaimera_topology():
+    return jsonify(chaimera.get_mesh_topology())
+
+@app.route('/api/chaimera/service', methods=['POST'])
+def chaimera_register_service():
+    data = request.json or {}
+    result = chaimera.register_service(
+        data.get('name', 'unknown'),
+        data.get('port', 5050),
+        data.get('type', 'api'),
+        data.get('description', ''),
+    )
+    return jsonify(result)
+
+@app.route('/api/chaimera/route', methods=['POST'])
+def chaimera_route():
+    data = request.json or {}
+    return jsonify(chaimera.route_request(data.get('service', '')))
+
+# === PortMan.AI Endpoints ===
+
+@app.route('/api/portman/start', methods=['POST'])
+def portman_start():
+    return jsonify(portman.start())
+
+@app.route('/api/portman/stop', methods=['POST'])
+def portman_stop():
+    return jsonify(portman.stop())
+
+@app.route('/api/portman/status', methods=['GET'])
+def portman_status():
+    return jsonify(portman.get_status())
+
+@app.route('/api/portman/allocate', methods=['POST'])
+def portman_allocate():
+    data = request.json or {}
+    result = portman.allocate_port(
+        data.get('service', ''),
+        data.get('protocol', 'http'),
+        data.get('container'),
+    )
+    return jsonify(result)
+
+@app.route('/api/portman/release', methods=['POST'])
+def portman_release():
+    data = request.json or {}
+    return jsonify(portman.release_port(data.get('service', '')))
+
+@app.route('/api/portman/switch', methods=['POST'])
+def portman_switch():
+    data = request.json or {}
+    return jsonify(portman.switch_port(data.get('service', ''),
+                                       data.get('port', 0)))
+
+@app.route('/api/portman/forward', methods=['POST'])
+def portman_forward():
+    data = request.json or {}
+    return jsonify(portman.add_forwarding_rule(
+        data.get('source_port', 0),
+        data.get('dest_port', 0),
+        data.get('protocol', 'tcp'),
+    ))
+
+@app.route('/api/portman/containers', methods=['GET'])
+def portman_containers():
+    return jsonify(portman.get_container_routes())
+
+@app.route('/api/portman/scan', methods=['GET'])
+def portman_scan():
+    return jsonify(portman.scan_port_range())
+
+# === System Monitor Endpoints ===
+
+@app.route('/api/sysmon/start', methods=['POST'])
+def sysmon_start():
+    return jsonify(sys_monitor.start())
+
+@app.route('/api/sysmon/stop', methods=['POST'])
+def sysmon_stop():
+    return jsonify(sys_monitor.stop())
+
+@app.route('/api/sysmon/status', methods=['GET'])
+def sysmon_status():
+    return jsonify(sys_monitor.get_status())
+
+@app.route('/api/sysmon/temps', methods=['GET'])
+def sysmon_temps():
+    return jsonify(sys_monitor.read_temperatures())
+
+@app.route('/api/sysmon/voltages', methods=['GET'])
+def sysmon_voltages():
+    return jsonify(sys_monitor.read_voltages())
+
+@app.route('/api/sysmon/fans', methods=['GET'])
+def sysmon_fans():
+    return jsonify(sys_monitor.read_fan_speeds())
+
+@app.route('/api/sysmon/bios', methods=['GET'])
+def sysmon_bios():
+    return jsonify(sys_monitor.bios_config)
+
 if __name__ == '__main__':
-    # Start telemetry thread
+    # Start background threads
     thread = threading.Thread(target=telemetry_thread, daemon=True)
     thread.start()
+    
+    sysmon_thread = threading.Thread(target=system_monitor_thread, daemon=True)
+    sysmon_thread.start()
+    
+    # Initialize subsystems
+    chaimera.start()
+    portman.start()
+    sys_monitor.start()
     
     print("=" * 60)
     print("🏎️  NATOS - Autonomous Tuning & Optimization System")
@@ -331,6 +524,10 @@ if __name__ == '__main__':
     print("⚠️  WARNING: FOR EDUCATIONAL/SIMULATION PURPOSES ONLY")
     print("=" * 60)
     print("\n🌐 Starting web server on http://localhost:5000")
+    print("🎙️  Voice Chat: Ready")
+    print("🔗 CHAiMERA Orchestrator: Active")
+    print("🚪 PortMan.AI: Active")
+    print("🖥️  System Monitor: Active")
     print("\n📊 Dashboard will open automatically...\n")
     
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True, use_reloader=False)

@@ -301,6 +301,123 @@
             color: #00ff88;
             font-weight: bold;
         }
+
+        /* === New System Panel Styles === */
+        .system-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .system-panel {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .system-panel h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+        }
+
+        .panel-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            margin: 3px 0;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .panel-label { color: #aaa; }
+        .panel-value { color: #00ff88; font-weight: bold; }
+        .panel-value.warn { color: #ffaa00; }
+        .panel-value.crit { color: #ff4444; }
+
+        .voice-peers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .voice-peer {
+            background: rgba(0, 255, 136, 0.15);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 0.85em;
+        }
+
+        .voice-peer.speaking {
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .voice-peer.muted { color: #666; border-color: #444; }
+
+        .btn-sm {
+            padding: 8px 12px;
+            margin: 3px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-voice { background: #00aaff; color: #000; }
+        .btn-voice:hover { box-shadow: 0 0 15px rgba(0, 170, 255, 0.5); }
+        .btn-voice.active-voice { background: #ff4444; }
+
+        .mesh-node {
+            display: inline-block;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            padding: 4px 10px;
+            margin: 3px;
+            font-size: 0.8em;
+        }
+
+        .mesh-node.running { border-color: #00ff88; }
+        .mesh-node.degraded { border-color: #ffaa00; color: #ffaa00; }
+        .mesh-node.critical { border-color: #ff4444; color: #ff4444; }
+
+        .port-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+
+        .port-table th {
+            text-align: left;
+            padding: 6px;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+        }
+
+        .port-table td {
+            padding: 5px 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .temp-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-top: 3px;
+        }
+
+        .temp-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
     </style>
 </head>
 <body>
@@ -377,6 +494,104 @@
             <h3 style="color: #ff4444; margin-bottom: 10px;">⚠️ Safety Alerts</h3>
             <div id="alertsList">
                 <p style="color: #00ff88;">System nominal - No alerts</p>
+            </div>
+        </div>
+
+        <!-- System Panels: Voice, CHAiMERA, PortMan, SysMon -->
+        <div class="system-panels">
+            <!-- Voice Chat Panel -->
+            <div class="system-panel">
+                <h3>🎙️ Voice Chat</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-sm btn-voice" id="voiceBtn" onclick="toggleVoiceChat()">Join Voice</button>
+                    <button class="btn-sm btn-voice" id="muteBtn" onclick="toggleMute()" style="display:none;">Mute</button>
+                    <button class="btn-sm btn-voice" id="leaveBtn" onclick="leaveVoice()" style="display:none;">Leave</button>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Room:</span>
+                    <span class="panel-value" id="voiceRoom">--</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Status:</span>
+                    <span class="panel-value" id="voiceStatus">Disconnected</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Peers:</span>
+                    <span class="panel-value" id="voicePeerCount">0</span>
+                </div>
+                <div class="voice-peers" id="voicePeers"></div>
+            </div>
+
+            <!-- CHAiMERA Orchestrator Panel -->
+            <div class="system-panel">
+                <h3>🔗 CHAiMERA Orchestrator</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-sm btn-voice" onclick="refreshChaimera()">Refresh</button>
+                    <button class="btn-sm btn-voice" onclick="runHealthCheck()">Health Check</button>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Status:</span>
+                    <span class="panel-value" id="chaiStatus">Loading...</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Mesh Health:</span>
+                    <span class="panel-value" id="chaiHealth">--</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Services:</span>
+                    <span class="panel-value" id="chaiServices">--</span>
+                </div>
+                <div id="chaiMeshNodes" style="margin-top: 8px;"></div>
+            </div>
+
+            <!-- PortMan.AI Panel -->
+            <div class="system-panel">
+                <h3>🚪 PortMan.AI</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-sm btn-voice" onclick="refreshPortman()">Refresh</button>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Status:</span>
+                    <span class="panel-value" id="portmanStatus">Loading...</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Managed Ports:</span>
+                    <span class="panel-value" id="portmanCount">--</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Containers:</span>
+                    <span class="panel-value" id="portmanContainers">--</span>
+                </div>
+                <table class="port-table" id="portTable" style="margin-top: 8px;">
+                    <thead><tr><th>Service</th><th>Port</th><th>Proto</th><th>Container</th></tr></thead>
+                    <tbody id="portTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- System Monitor Panel -->
+            <div class="system-panel">
+                <h3>🖥️ System Monitor</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-sm btn-voice" onclick="refreshSysmon()">Refresh</button>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Health Score:</span>
+                    <span class="panel-value" id="sysHealth">--</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">CPU:</span>
+                    <span class="panel-value" id="sysCpu">--</span>
+                </div>
+                <div class="panel-row">
+                    <span class="panel-label">Memory:</span>
+                    <span class="panel-value" id="sysMem">--</span>
+                </div>
+                <div id="sysTemps" style="margin-top: 8px;"></div>
+                <div id="sysVoltages" style="margin-top: 8px;"></div>
+                <div class="panel-row" style="margin-top: 8px;">
+                    <span class="panel-label">BIOS:</span>
+                    <span class="panel-value" id="sysBios">--</span>
+                </div>
             </div>
         </div>
         
@@ -803,6 +1018,178 @@
         function optimizeTune() {
             alert('⚡ Optimize Tune\n\nAI would analyze:\n• Current driving patterns\n• Temperature trends\n• Knock events\n• Fuel efficiency\n• Performance metrics\n\nThen suggest tune adjustments!\n\nFeature in development!');
         }
+
+        // ========================
+        // Voice Chat Functions
+        // ========================
+        let voiceRoomId = null;
+        let voicePeerId = null;
+        let voiceMuted = false;
+
+        async function toggleVoiceChat() {
+            if (voiceRoomId) return;
+            // Create or join room
+            const res = await fetch('/api/voice/room', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: 'NATOS Main'})
+            });
+            const room = await res.json();
+            voiceRoomId = room.id;
+            voicePeerId = 'peer-' + Math.floor(Math.random() * 9999);
+            const joinRes = await fetch(`/api/voice/room/${voiceRoomId}/join`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({peer_id: voicePeerId, peer_name: 'User'})
+            });
+            const joinData = await joinRes.json();
+            document.getElementById('voiceRoom').textContent = room.name;
+            document.getElementById('voiceStatus').textContent = 'Connected';
+            document.getElementById('voicePeerCount').textContent = joinData.room ? joinData.room.peers.length : 1;
+            document.getElementById('voiceBtn').style.display = 'none';
+            document.getElementById('muteBtn').style.display = '';
+            document.getElementById('leaveBtn').style.display = '';
+            updateVoicePeers(joinData.room ? joinData.room.peers : []);
+        }
+
+        async function toggleMute() {
+            if (!voiceRoomId) return;
+            await fetch(`/api/voice/room/${voiceRoomId}/mute`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({peer_id: voicePeerId})
+            });
+            voiceMuted = !voiceMuted;
+            document.getElementById('muteBtn').textContent = voiceMuted ? 'Unmute' : 'Mute';
+        }
+
+        async function leaveVoice() {
+            if (!voiceRoomId) return;
+            await fetch(`/api/voice/room/${voiceRoomId}/leave`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({peer_id: voicePeerId})
+            });
+            voiceRoomId = null;
+            voicePeerId = null;
+            voiceMuted = false;
+            document.getElementById('voiceRoom').textContent = '--';
+            document.getElementById('voiceStatus').textContent = 'Disconnected';
+            document.getElementById('voicePeerCount').textContent = '0';
+            document.getElementById('voiceBtn').style.display = '';
+            document.getElementById('muteBtn').style.display = 'none';
+            document.getElementById('leaveBtn').style.display = 'none';
+            document.getElementById('voicePeers').innerHTML = '';
+        }
+
+        function updateVoicePeers(peers) {
+            const container = document.getElementById('voicePeers');
+            container.innerHTML = peers.map(p => {
+                let cls = 'voice-peer';
+                if (p.speaking) cls += ' speaking';
+                if (p.muted) cls += ' muted';
+                return `<span class="${cls}">${p.muted ? '🔇' : '🎤'} ${p.name}</span>`;
+            }).join('');
+        }
+
+        // ========================
+        // CHAiMERA Functions
+        // ========================
+        async function refreshChaimera() {
+            const res = await fetch('/api/chaimera/status');
+            const data = await res.json();
+            document.getElementById('chaiStatus').textContent = data.orchestration_active ? 'Active' : 'Inactive';
+            document.getElementById('chaiHealth').textContent = data.mesh_health + '%';
+            document.getElementById('chaiServices').textContent = data.services_running + '/' + data.total_services;
+            const nodesHtml = (data.services || []).map(s => {
+                const cls = 'mesh-node ' + s.status;
+                return `<span class="${cls}">${s.name} :${s.port}</span>`;
+            }).join('');
+            document.getElementById('chaiMeshNodes').innerHTML = nodesHtml;
+        }
+
+        async function runHealthCheck() {
+            const res = await fetch('/api/chaimera/health');
+            const data = await res.json();
+            refreshChaimera();
+        }
+
+        // ========================
+        // PortMan.AI Functions
+        // ========================
+        async function refreshPortman() {
+            const res = await fetch('/api/portman/status');
+            const data = await res.json();
+            document.getElementById('portmanStatus').textContent = data.active ? 'Active' : 'Inactive';
+            document.getElementById('portmanCount').textContent = data.managed_ports;
+            document.getElementById('portmanContainers').textContent = data.container_routes;
+            const tbody = document.getElementById('portTableBody');
+            tbody.innerHTML = (data.ports || []).map(p =>
+                `<tr><td>${p.service}</td><td>${p.port}</td><td>${p.protocol}</td><td>${p.container}</td></tr>`
+            ).join('');
+        }
+
+        // ========================
+        // System Monitor Functions
+        // ========================
+        async function refreshSysmon() {
+            const res = await fetch('/api/sysmon/status');
+            const data = await res.json();
+            document.getElementById('sysHealth').textContent = data.health_score + '%';
+            document.getElementById('sysCpu').textContent = (data.resources?.cpu_percent || 0) + '%';
+            document.getElementById('sysMem').textContent = (data.resources?.memory_percent || 0) + '%';
+            // Temperatures
+            let tempHtml = '';
+            if (data.temperatures) {
+                for (const [name, t] of Object.entries(data.temperatures)) {
+                    const pct = Math.min(100, (t.current / (t.critical || 100)) * 100);
+                    const color = pct > 80 ? '#ff4444' : pct > 60 ? '#ffaa00' : '#00ff88';
+                    tempHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${t.current}°C</span></div>`;
+                    tempHtml += `<div class="temp-bar"><div class="temp-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
+                }
+            }
+            document.getElementById('sysTemps').innerHTML = tempHtml;
+            // Voltages
+            let voltHtml = '';
+            if (data.voltages) {
+                for (const [name, v] of Object.entries(data.voltages)) {
+                    voltHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${v.value}${v.unit}</span></div>`;
+                }
+            }
+            document.getElementById('sysVoltages').innerHTML = voltHtml;
+            // BIOS
+            if (data.bios) {
+                document.getElementById('sysBios').textContent = data.bios.bios_vendor + ' v' + data.bios.bios_version;
+            }
+        }
+
+        // Real-time system monitor updates via SocketIO
+        socket.on('system_monitor_update', function(data) {
+            if (data.temperatures) {
+                let tempHtml = '';
+                for (const [name, t] of Object.entries(data.temperatures)) {
+                    const pct = Math.min(100, (t.current / (t.critical || 100)) * 100);
+                    const color = pct > 80 ? '#ff4444' : pct > 60 ? '#ffaa00' : '#00ff88';
+                    tempHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${t.current}°C</span></div>`;
+                    tempHtml += `<div class="temp-bar"><div class="temp-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
+                }
+                document.getElementById('sysTemps').innerHTML = tempHtml;
+            }
+            if (data.voltages) {
+                let voltHtml = '';
+                for (const [name, v] of Object.entries(data.voltages)) {
+                    voltHtml += `<div class="panel-row"><span class="panel-label">${name}</span><span class="panel-value">${v.value}${v.unit}</span></div>`;
+                }
+                document.getElementById('sysVoltages').innerHTML = voltHtml;
+            }
+        });
+
+        // Initial load of all panels
+        setTimeout(() => {
+            refreshChaimera();
+            refreshPortman();
+            refreshSysmon();
+        }, 500);
     </script>
 </body>
 </html>
