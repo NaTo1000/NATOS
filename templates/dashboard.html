@@ -136,6 +136,47 @@
             border-color: #00ff88;
         }
         
+        .btn-engine {
+            background: rgba(255, 165, 0, 0.15);
+            color: #ffcc00;
+            border: 2px solid rgba(255, 165, 0, 0.4);
+        }
+        
+        .btn-engine:hover, .btn-engine.active {
+            background: linear-gradient(135deg, #ff9900, #cc7700);
+            color: #000;
+            border-color: #ffaa00;
+            box-shadow: 0 0 20px rgba(255, 165, 0, 0.5);
+        }
+        
+        .btn-meth {
+            background: rgba(0, 120, 255, 0.15);
+            color: #44aaff;
+            border: 2px solid rgba(0, 120, 255, 0.4);
+        }
+        
+        .btn-meth:hover {
+            background: linear-gradient(135deg, #0088ff, #0055cc);
+            color: #fff;
+            border-color: #0088ff;
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        .btn-nitrous {
+            background: rgba(160, 80, 255, 0.15);
+            color: #bb88ff;
+            border: 2px solid rgba(160, 80, 255, 0.4);
+        }
+        
+        .btn-nitrous:hover {
+            background: linear-gradient(135deg, #aa55ff, #7722cc);
+            color: #fff;
+            border-color: #aa55ff;
+            box-shadow: 0 0 20px rgba(170, 85, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
         .telemetry-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -265,6 +306,8 @@
         
         .status-off { background: #666; animation: none; }
         .status-on { background: #00ff88; }
+        .status-meth { background: #0088ff; }
+        .status-nitrous { background: #aa55ff; }
         
         @keyframes blink {
             0%, 100% { opacity: 1; }
@@ -300,6 +343,24 @@
         .tune-param-value {
             color: #00ff88;
             font-weight: bold;
+        }
+
+        .system-status-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .system-status-row .status-text {
+            flex: 1;
+        }
+
+        .shot-size-display {
+            font-size: 0.9em;
+            color: #bb88ff;
+            margin-top: 5px;
+            text-align: center;
         }
     </style>
 </head>
@@ -341,6 +402,34 @@
                 <button class="btn btn-mode" onclick="researchEngine()">Research Engine</button>
                 <button class="btn btn-mode" onclick="optimizeTune()">Optimize Tune</button>
             </div>
+
+            <div class="control-card">
+                <h3>🏁 LS Engine Profile</h3>
+                <button class="btn btn-engine active" onclick="setEngineProfile('LS1')" id="profile-LS1">LS1 — 5.7L V8</button>
+                <button class="btn btn-engine" onclick="setEngineProfile('LS2')" id="profile-LS2">LS2 — 6.0L V8</button>
+                <button class="btn btn-engine" onclick="setEngineProfile('LS3')" id="profile-LS3">LS3 — 6.2L V8</button>
+            </div>
+
+            <div class="control-card">
+                <h3>💧 Meth/Water Injection</h3>
+                <div class="system-status-row">
+                    <span class="status-indicator status-off" id="methStatus"></span>
+                    <span class="status-text" id="methStatusText">Meth Injection: OFF</span>
+                </div>
+                <button class="btn btn-meth" onclick="toggleMethInjection()">Enable / Disable</button>
+                <button class="btn btn-meth" onclick="refillMethTank()">🔄 Refill Tank</button>
+            </div>
+
+            <div class="control-card">
+                <h3>🔥 Nitrous Fogging</h3>
+                <div class="system-status-row">
+                    <span class="status-indicator status-off" id="nitrousStatus"></span>
+                    <span class="status-text" id="nitrousStatusText">Nitrous: OFF</span>
+                </div>
+                <div class="shot-size-display" id="nitrousShotSize">Shot Size: 75 HP</div>
+                <button class="btn btn-nitrous" onclick="toggleNitrous()">Enable / Disable</button>
+                <button class="btn btn-nitrous" onclick="refillNitrousBottle()">🔄 Refill Bottle</button>
+            </div>
         </div>
         
         <!-- Current Tune Info -->
@@ -349,6 +438,10 @@
             <div class="tune-param">
                 <span class="tune-param-label">Mode:</span>
                 <span class="tune-param-value" id="tune-mode">STOCK</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Engine Profile:</span>
+                <span class="tune-param-value" id="tune-engine-profile">LS1</span>
             </div>
             <div class="tune-param">
                 <span class="tune-param-label">Fuel Map Adjustment:</span>
@@ -369,6 +462,14 @@
             <div class="tune-param">
                 <span class="tune-param-label">Rev Limit:</span>
                 <span class="tune-param-value" id="tune-revlimit">7000 RPM</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Meth Injection Status:</span>
+                <span class="tune-param-value" id="tune-meth-status" style="color: #44aaff;">OFF</span>
+            </div>
+            <div class="tune-param">
+                <span class="tune-param-label">Nitrous Status:</span>
+                <span class="tune-param-value" id="tune-nitrous-status" style="color: #bb88ff;">OFF</span>
             </div>
         </div>
         
@@ -477,6 +578,60 @@
                 <div class="telemetry-value" id="voltage">14.2</div>
                 <div class="telemetry-unit">Volts</div>
             </div>
+
+            <div class="telemetry-card" id="card-wheel-fl">
+                <div class="telemetry-label">Wheel FL</div>
+                <div class="telemetry-value" id="wheel-fl">0</div>
+                <div class="telemetry-unit">MPH</div>
+            </div>
+
+            <div class="telemetry-card" id="card-wheel-fr">
+                <div class="telemetry-label">Wheel FR</div>
+                <div class="telemetry-value" id="wheel-fr">0</div>
+                <div class="telemetry-unit">MPH</div>
+            </div>
+
+            <div class="telemetry-card" id="card-wheel-rl">
+                <div class="telemetry-label">Wheel RL</div>
+                <div class="telemetry-value" id="wheel-rl">0</div>
+                <div class="telemetry-unit">MPH</div>
+            </div>
+
+            <div class="telemetry-card" id="card-wheel-rr">
+                <div class="telemetry-label">Wheel RR</div>
+                <div class="telemetry-value" id="wheel-rr">0</div>
+                <div class="telemetry-unit">MPH</div>
+            </div>
+
+            <div class="telemetry-card" id="card-wheel-slip">
+                <div class="telemetry-label">Wheel Slip</div>
+                <div class="telemetry-value" id="wheel-slip">0</div>
+                <div class="telemetry-unit">%</div>
+            </div>
+
+            <div class="telemetry-card" id="card-meth-flow">
+                <div class="telemetry-label">Meth Flow Rate</div>
+                <div class="telemetry-value" id="meth-flow" style="color: #44aaff;">0</div>
+                <div class="telemetry-unit">cc/min</div>
+            </div>
+
+            <div class="telemetry-card" id="card-nitrous-flow">
+                <div class="telemetry-label">Nitrous Flow Rate</div>
+                <div class="telemetry-value" id="nitrous-flow" style="color: #bb88ff;">0</div>
+                <div class="telemetry-unit">lb/min</div>
+            </div>
+
+            <div class="telemetry-card" id="card-meth-tank">
+                <div class="telemetry-label">Meth Tank Level</div>
+                <div class="telemetry-value" id="meth-tank" style="color: #44aaff;">100</div>
+                <div class="telemetry-unit">%</div>
+            </div>
+
+            <div class="telemetry-card" id="card-nitrous-bottle">
+                <div class="telemetry-label">Nitrous Bottle</div>
+                <div class="telemetry-value" id="nitrous-bottle" style="color: #bb88ff;">100</div>
+                <div class="telemetry-unit">%</div>
+            </div>
         </div>
         
         <!-- Charts -->
@@ -500,6 +655,11 @@
                 <h3>⚡ Power Parameters</h3>
                 <canvas id="powerChart"></canvas>
             </div>
+
+            <div class="chart-card">
+                <h3>🛞 Wheel Speed & Traction</h3>
+                <canvas id="wheelChart"></canvas>
+            </div>
         </div>
     </div>
     
@@ -519,7 +679,12 @@
             afr: [],
             lambda: [],
             timing: [],
-            throttle: []
+            throttle: [],
+            wheelFL: [],
+            wheelFR: [],
+            wheelRL: [],
+            wheelRR: [],
+            wheelSlip: []
         };
         
         // Initialize charts
@@ -630,6 +795,54 @@
                 scales: { y: { ticks: { color: '#fff' } } }
             }
         });
+
+        const wheelChart = new Chart(document.getElementById('wheelChart'), {
+            type: 'line',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'FL (MPH)',
+                    data: chartData.wheelFL,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'FR (MPH)',
+                    data: chartData.wheelFR,
+                    borderColor: '#00aaff',
+                    backgroundColor: 'rgba(0, 170, 255, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'RL (MPH)',
+                    data: chartData.wheelRL,
+                    borderColor: '#ffaa00',
+                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'RR (MPH)',
+                    data: chartData.wheelRR,
+                    borderColor: '#ff6600',
+                    backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                    yAxisID: 'y',
+                }, {
+                    label: 'Slip (%)',
+                    data: chartData.wheelSlip,
+                    borderColor: '#ff4444',
+                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                    borderDash: [5, 5],
+                    yAxisID: 'y1',
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Speed (MPH)', color: '#00ff88' }, ticks: { color: '#00ff88' } },
+                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Slip (%)', color: '#ff4444' }, ticks: { color: '#ff4444' }, min: 0, max: 100, grid: { drawOnChartArea: false } }
+                },
+                plugins: { legend: { labels: { color: '#fff' } } }
+            }
+        });
         
         // Socket event handlers
         socket.on('telemetry_update', function(data) {
@@ -637,6 +850,16 @@
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
             updateCharts(data.telemetry);
+
+            if (data.engine_profile) {
+                updateEngineProfile(data.engine_profile, data.engine_config);
+            }
+            if (data.meth_injection) {
+                updateMethStatus(data.meth_injection);
+            }
+            if (data.nitrous) {
+                updateNitrousStatus(data.nitrous);
+            }
         });
         
         function updateTelemetry(telemetry) {
@@ -656,6 +879,31 @@
             document.getElementById('knock').textContent = telemetry.knock_count;
             document.getElementById('lambda').textContent = telemetry.lambda.toFixed(2);
             document.getElementById('voltage').textContent = telemetry.voltage.toFixed(1);
+
+            // Wheel speed telemetry
+            if (telemetry.wheel_speed_fl !== undefined) {
+                document.getElementById('wheel-fl').textContent = Math.round(telemetry.wheel_speed_fl);
+                document.getElementById('wheel-fr').textContent = Math.round(telemetry.wheel_speed_fr);
+                document.getElementById('wheel-rl').textContent = Math.round(telemetry.wheel_speed_rl);
+                document.getElementById('wheel-rr').textContent = Math.round(telemetry.wheel_speed_rr);
+            }
+            if (telemetry.wheel_slip !== undefined) {
+                document.getElementById('wheel-slip').textContent = telemetry.wheel_slip.toFixed(1);
+            }
+
+            // Meth & nitrous flow telemetry
+            if (telemetry.meth_flow_rate !== undefined) {
+                document.getElementById('meth-flow').textContent = telemetry.meth_flow_rate.toFixed(1);
+            }
+            if (telemetry.nitrous_flow_rate !== undefined) {
+                document.getElementById('nitrous-flow').textContent = telemetry.nitrous_flow_rate.toFixed(2);
+            }
+            if (telemetry.meth_tank_level !== undefined) {
+                document.getElementById('meth-tank').textContent = Math.round(telemetry.meth_tank_level);
+            }
+            if (telemetry.nitrous_bottle_level !== undefined) {
+                document.getElementById('nitrous-bottle').textContent = Math.round(telemetry.nitrous_bottle_level);
+            }
             
             // Update warning states
             updateCardWarnings(telemetry);
@@ -682,6 +930,24 @@
             
             if (telemetry.afr < 11.0) document.getElementById('card-afr').classList.add('warning');
             if (telemetry.afr < 10.5) document.getElementById('card-afr').classList.add('critical');
+
+            // Wheel slip warnings
+            if (telemetry.wheel_slip !== undefined) {
+                if (telemetry.wheel_slip > 10) document.getElementById('card-wheel-slip').classList.add('warning');
+                if (telemetry.wheel_slip > 25) document.getElementById('card-wheel-slip').classList.add('critical');
+            }
+
+            // Meth tank level warnings
+            if (telemetry.meth_tank_level !== undefined) {
+                if (telemetry.meth_tank_level < 25) document.getElementById('card-meth-tank').classList.add('warning');
+                if (telemetry.meth_tank_level < 10) document.getElementById('card-meth-tank').classList.add('critical');
+            }
+
+            // Nitrous bottle level warnings
+            if (telemetry.nitrous_bottle_level !== undefined) {
+                if (telemetry.nitrous_bottle_level < 25) document.getElementById('card-nitrous-bottle').classList.add('warning');
+                if (telemetry.nitrous_bottle_level < 10) document.getElementById('card-nitrous-bottle').classList.add('critical');
+            }
         }
         
         function updateTuneInfo(tune) {
@@ -691,6 +957,50 @@
             document.getElementById('tune-boost').textContent = tune.boost_target + ' PSI';
             document.getElementById('tune-afr').textContent = tune.afr_target.toFixed(1);
             document.getElementById('tune-revlimit').textContent = tune.rev_limit + ' RPM';
+        }
+
+        function updateEngineProfile(profile, config) {
+            // Update tune-info row
+            document.getElementById('tune-engine-profile').textContent = profile;
+
+            // Highlight active profile button
+            document.querySelectorAll('.btn-engine').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById('profile-' + profile);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        function updateMethStatus(meth) {
+            const indicator = document.getElementById('methStatus');
+            const text = document.getElementById('methStatusText');
+            const tuneVal = document.getElementById('tune-meth-status');
+            if (meth.enabled) {
+                indicator.className = 'status-indicator status-meth';
+                text.textContent = 'Meth Injection: ON';
+                tuneVal.textContent = 'ON';
+            } else {
+                indicator.className = 'status-indicator status-off';
+                text.textContent = 'Meth Injection: OFF';
+                tuneVal.textContent = 'OFF';
+            }
+        }
+
+        function updateNitrousStatus(nitrous) {
+            const indicator = document.getElementById('nitrousStatus');
+            const text = document.getElementById('nitrousStatusText');
+            const tuneVal = document.getElementById('tune-nitrous-status');
+            const shotDisplay = document.getElementById('nitrousShotSize');
+            if (nitrous.enabled) {
+                indicator.className = 'status-indicator status-nitrous';
+                text.textContent = 'Nitrous: ON';
+                tuneVal.textContent = 'ON';
+            } else {
+                indicator.className = 'status-indicator status-off';
+                text.textContent = 'Nitrous: OFF';
+                tuneVal.textContent = 'OFF';
+            }
+            if (nitrous.shot_size !== undefined) {
+                shotDisplay.textContent = 'Shot Size: ' + nitrous.shot_size + ' HP';
+            }
         }
         
         function updateSafetyAlerts(safety) {
@@ -735,6 +1045,11 @@
             chartData.lambda.push(telemetry.lambda);
             chartData.timing.push(telemetry.ignition_timing);
             chartData.throttle.push(telemetry.throttle_position);
+            chartData.wheelFL.push(telemetry.wheel_speed_fl || 0);
+            chartData.wheelFR.push(telemetry.wheel_speed_fr || 0);
+            chartData.wheelRL.push(telemetry.wheel_speed_rl || 0);
+            chartData.wheelRR.push(telemetry.wheel_speed_rr || 0);
+            chartData.wheelSlip.push(telemetry.wheel_slip || 0);
             
             // Keep only last N points
             if (chartData.labels.length > maxDataPoints) {
@@ -749,12 +1064,18 @@
                 chartData.lambda.shift();
                 chartData.timing.shift();
                 chartData.throttle.shift();
+                chartData.wheelFL.shift();
+                chartData.wheelFR.shift();
+                chartData.wheelRL.shift();
+                chartData.wheelRR.shift();
+                chartData.wheelSlip.shift();
             }
             
             rpmBoostChart.update('none');
             tempChart.update('none');
             afrChart.update('none');
             powerChart.update('none');
+            wheelChart.update('none');
         }
         
         // Control functions
@@ -790,6 +1111,54 @@
                 btn.classList.remove('active');
             });
             document.getElementById('mode-' + mode).classList.add('active');
+        }
+
+        async function setEngineProfile(profile) {
+            if (!confirm(`🏁 Switch to ${profile} engine profile?\n\nThis will update base maps and calibration for the ${profile} platform.`)) {
+                return;
+            }
+
+            const response = await fetch('/api/engine/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile: profile })
+            });
+
+            // Update button states
+            document.querySelectorAll('.btn-engine').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('profile-' + profile).classList.add('active');
+            document.getElementById('tune-engine-profile').textContent = profile;
+        }
+
+        async function toggleMethInjection() {
+            const response = await fetch('/api/meth/toggle', { method: 'POST' });
+            const data = await response.json();
+            updateMethStatus(data);
+        }
+
+        async function refillMethTank() {
+            const response = await fetch('/api/meth/refill', { method: 'POST' });
+            const data = await response.json();
+            if (data.meth_tank_level !== undefined) {
+                document.getElementById('meth-tank').textContent = Math.round(data.meth_tank_level);
+            }
+        }
+
+        async function toggleNitrous() {
+            if (!confirm('⚠️ WARNING: Nitrous oxide injection significantly increases combustion pressures.\n\nEnsure fuel system and engine internals are rated for nitrous use.\n\nProceed?')) {
+                return;
+            }
+            const response = await fetch('/api/nitrous/toggle', { method: 'POST' });
+            const data = await response.json();
+            updateNitrousStatus(data);
+        }
+
+        async function refillNitrousBottle() {
+            const response = await fetch('/api/nitrous/refill', { method: 'POST' });
+            const data = await response.json();
+            if (data.nitrous_bottle_level !== undefined) {
+                document.getElementById('nitrous-bottle').textContent = Math.round(data.nitrous_bottle_level);
+            }
         }
         
         function openAITuner() {
