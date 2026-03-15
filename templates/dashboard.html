@@ -301,6 +301,25 @@
             color: #00ff88;
             font-weight: bold;
         }
+
+        .brain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .brain-status {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(0, 255, 136, 0.15);
+            color: #00ff88;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.8em;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -369,6 +388,33 @@
             <div class="tune-param">
                 <span class="tune-param-label">Rev Limit:</span>
                 <span class="tune-param-value" id="tune-revlimit">7000 RPM</span>
+            </div>
+        </div>
+
+        <div class="tune-info">
+            <h3>🧠 TWINBRAIN Real-Time Updater</h3>
+            <div class="brain-status" id="twinbrain-status">STANDBY</div>
+            <div class="brain-grid">
+                <div class="tune-param">
+                    <span class="tune-param-label">Safety Brain</span>
+                    <span class="tune-param-value" id="twinbrain-safety">Monitoring for live corrections</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Analysis Brain</span>
+                    <span class="tune-param-value" id="twinbrain-analysis">Waiting for live telemetry</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Mini PCI Rampack</span>
+                    <span class="tune-param-value" id="twinbrain-rampack">Standing by</span>
+                </div>
+                <div class="tune-param">
+                    <span class="tune-param-label">Last Adjustment</span>
+                    <span class="tune-param-value" id="twinbrain-last">No live adjustments applied yet</span>
+                </div>
+            </div>
+            <div class="tune-param" style="margin-top: 10px;">
+                <span class="tune-param-label">Reasoning</span>
+                <span class="tune-param-value" id="twinbrain-reasons">TWINBRAIN analysis idle until engine start</span>
             </div>
         </div>
         
@@ -636,6 +682,7 @@
             updateTelemetry(data.telemetry);
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
+            updateTwinBrain(data.twinbrain);
             updateCharts(data.telemetry);
         });
         
@@ -719,6 +766,21 @@
                     criticalBanner.style.display = 'none';
                 }
             }
+        }
+
+        function updateTwinBrain(twinbrain) {
+            if (!twinbrain) {
+                return;
+            }
+
+            document.getElementById('twinbrain-status').textContent = twinbrain.status.toUpperCase();
+            document.getElementById('twinbrain-safety').textContent = twinbrain.safety_brain;
+            document.getElementById('twinbrain-analysis').textContent = twinbrain.analysis_brain;
+            document.getElementById('twinbrain-rampack').textContent = twinbrain.rampack_module;
+            document.getElementById('twinbrain-last').textContent = twinbrain.last_adjustment;
+            document.getElementById('twinbrain-reasons').textContent = twinbrain.reasons.length
+                ? twinbrain.reasons.join(' | ')
+                : 'TWINBRAIN monitoring in real time for on-the-fly corrections';
         }
         
         function updateCharts(telemetry) {

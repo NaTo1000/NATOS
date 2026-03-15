@@ -75,6 +75,8 @@
 - Driving pattern analysis
 - Adaptive tune optimization
 - Real-time safety monitoring
+- TWINBRAIN live updater with dual safety/analysis lanes
+- Mini PCI Rampack-backed on-the-fly parameter corrections
 - Modification recommendations
 
 ---
@@ -205,6 +207,7 @@ Real-time adjustments for:
 - Real-time telemetry display
 - Chart.js for historical graphs
 - SocketIO client for live updates
+- TWINBRAIN live updater panel for adaptive analysis
 - Responsive design
 - Warning/alert system
 
