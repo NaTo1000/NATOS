@@ -60,6 +60,12 @@
    - Very rich AFR (11.5:1)
    - ⚠️ Requires forged internals
 
+### Autonomous AI Drive Profiles
+
+- **Aggressive AI**: Higher throttle behavior with stronger boost/timing bias
+- **Mild AI**: Balanced autonomous control for general driving simulation
+- **Eco AI**: Low-load control focused on reduced boost and efficiency
+
 ### Safety Systems
 
 - **Knock Detection**: Automatic timing retardation
@@ -136,6 +142,11 @@ The dashboard will be available at: **http://localhost:5000**
 - Temperature Monitor (coolant, oil, exhaust)
 - AFR & Lambda tracking
 - Power Parameters (throttle, timing)
+- Real-time MAP vs AFR air-curve mapping with throttle-weighted points
+
+**Motion Logging**
+- Real-time full motion delta log (RPM, speed, throttle)
+- Per-sample AI profile tags for autonomous behavior tracing
 
 ### Safety Alerts
 
@@ -264,8 +275,28 @@ Response: {
   "engine_on": true,
   "telemetry": {...},
   "tune": {...},
-  "engine_config": {...}
+  "engine_config": {...},
+  "autonomous_control": {...}
 }
+```
+
+### Autonomous AI Control
+
+**Get AI Control State**
+```http
+GET /api/ai/control
+Response: {
+  "status": "success",
+  "autonomous_control": {"enabled": true, "profile": "mild"},
+  "profiles": ["aggressive", "mild", "eco"]
+}
+```
+
+**Set AI Control State**
+```http
+POST /api/ai/control
+Body: {"profile": "aggressive|mild|eco", "enabled": true}
+Response: {"status": "success", "autonomous_control": {...}}
 ```
 
 ### WebSocket Events
