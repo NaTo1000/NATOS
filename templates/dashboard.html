@@ -305,8 +305,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>🏎️ NATOS</h1>
-        <p style="color: #00ff88; font-size: 1.2em;">AI-Powered ECU Tuning & Telemetry System</p>
+        <h1>🏎️ NATOS — VW Golf R EA113</h1>
+        <p style="color: #00ff88; font-size: 1.2em;">AI-Powered ECU Tuning & Telemetry — EA113 2.0T K04</p>
         <p class="subtitle">⚠️ SIMULATION MODE - FOR EDUCATIONAL PURPOSES ONLY ⚠️</p>
     </div>
     
@@ -329,10 +329,12 @@
             
             <div class="control-card">
                 <h3>🎯 Tuning Mode</h3>
+                <button class="btn btn-mode" onclick="setMode('eco')" id="mode-eco">🌿 Eco</button>
                 <button class="btn btn-mode active" onclick="setMode('stock')" id="mode-stock">Stock</button>
-                <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
-                <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
-                <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('sport')" id="mode-sport">⚡ Sport</button>
+                <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">🏁 Performance</button>
+                <button class="btn btn-mode" onclick="setMode('race')" id="mode-race">🏆 Race ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('flames')" id="mode-flames">🔥 Shooting Flames ⚠️⚠️</button>
             </div>
             
             <div class="control-card">
@@ -772,9 +774,17 @@
         }
         
         async function setMode(mode) {
-            // Show warning for modified mode
-            if (mode === 'modified' || mode === 'performance') {
-                if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+            // Show warning for aggressive modes
+            if (mode === 'flames') {
+                if (!confirm(`🔥 WARNING: SHOOTING FLAMES MODE 🔥\n\nThis mode enables:\n• Anti-lag system (ALS)\n• Overrun fuel injection (pops & bangs)\n• Extreme exhaust temperatures (1200°F+)\n• Rich AFR on deceleration\n\nRequires:\n• Upgraded exhaust / downpipe\n• Heat-resistant components\n• Track / off-road use ONLY\n\n⚠️ WILL DAMAGE STOCK CATALYTIC CONVERTER ⚠️\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            } else if (mode === 'race') {
+                if (!confirm(`🏆 WARNING: RACE MODE\n\nThis mode runs:\n• 23 PSI boost (requires upgraded internals)\n• Very rich AFR (11.8:1)\n• +5° timing advance\n• 7500 RPM rev limit\n\nRequires:\n• Forged internals / upgraded rods\n• Front-mount intercooler\n• High-pressure fuel pump upgrade\n• Track use recommended\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            } else if (mode === 'performance') {
+                if (!confirm(`🏁 WARNING: PERFORMANCE MODE\n\nThis mode increases engine stress:\n• 20 PSI boost\n• Rich AFR (12.5:1)\n• +3° timing advance\n• 7200 RPM rev limit\n\nRequires premium 91+ AKI fuel.\n\nProceed?`)) {
                     return;
                 }
             }
