@@ -12,6 +12,8 @@ import threading
 import time
 import random
 import json
+import os
+import re
 from datetime import datetime
 
 app = Flask(__name__)
@@ -219,6 +221,154 @@ class VehicleSimulator:
 # Global vehicle instance
 vehicle = VehicleSimulator()
 
+class ChatAssistant:
+    """Simple local chat assistant with persistent memory."""
+    MAX_MESSAGE_LENGTH = 500
+
+    def __init__(self, simulator):
+        self.simulator = simulator
+        try:
+            self.max_history_length = int(os.getenv('NATOS_CHAT_MAX_HISTORY', '200'))
+        except ValueError:
+            self.max_history_length = 200
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        memory_dir = os.path.join(base_dir, 'data')
+        os.makedirs(memory_dir, exist_ok=True)
+        self.memory_file = os.path.join(memory_dir, 'chat_memory.json')
+        self.lock = threading.Lock()
+        self.history = self._load_history()
+
+    def _load_history(self):
+        if not os.path.exists(self.memory_file):
+            return []
+        try:
+            with open(self.memory_file, 'r', encoding='utf-8') as memory_stream:
+                loaded = json.load(memory_stream)
+            if isinstance(loaded, list):
+                return loaded
+        except (OSError, json.JSONDecodeError):
+            pass
+        return []
+
+    def _save_history(self):
+        try:
+            with open(self.memory_file, 'w', encoding='utf-8') as memory_stream:
+                json.dump(self.history, memory_stream, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
+
+    def _trim_history(self):
+        if len(self.history) > self.max_history_length:
+            self.history = self.history[-self.max_history_length:]
+
+    def _add_memory(self, role, message):
+        self.history.append({
+            "role": role,
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        })
+        self._trim_history()
+        self._save_history()
+
+    def _handle_command(self, text):
+        lowered = text.lower()
+        if re.search(r'^(please\s+)?(start|turn on)\s+(the\s+)?engine\b', lowered):
+            self.simulator.start()
+            return "Engine started. Telemetry streaming is now active."
+        if re.search(r'^(please\s+)?(stop|shut down|turn off)\s+(the\s+)?engine\b', lowered):
+            self.simulator.stop()
+            return "Engine stopped."
+        mode_match = re.search(r'\b(set|switch|change)\s+(to\s+)?(stock|economy|performance|modified)\s+mode\b', lowered)
+        if mode_match:
+            mode = mode_match.group(3)
+            self._apply_mode(mode)
+            return f"Set tune mode to {mode}."
+        direct_mode_match = re.search(r'^(stock|economy|performance|modified)\s+mode\b', lowered)
+        if direct_mode_match:
+            mode = direct_mode_match.group(1)
+            self._apply_mode(mode)
+            return f"Set tune mode to {mode}."
+        return None
+
+    def _apply_mode(self, mode):
+        if mode == 'stock':
+            self.simulator.tune.update({
+                "mode": "stock",
+                "fuel_map_adjustment": 0,
+                "timing_adjustment": 0,
+                "boost_target": 12,
+                "afr_target": 14.7,
+                "rev_limit": 7000,
+            })
+        elif mode == 'economy':
+            self.simulator.tune.update({
+                "mode": "economy",
+                "fuel_map_adjustment": -5,
+                "timing_adjustment": 2,
+                "boost_target": 10,
+                "afr_target": 15.2,
+                "rev_limit": 6500,
+            })
+        elif mode == 'performance':
+            self.simulator.tune.update({
+                "mode": "performance",
+                "fuel_map_adjustment": 10,
+                "timing_adjustment": 3,
+                "boost_target": 18,
+                "afr_target": 12.5,
+                "rev_limit": 7500,
+            })
+        elif mode == 'modified':
+            self.simulator.tune.update({
+                "mode": "modified",
+                "fuel_map_adjustment": 15,
+                "timing_adjustment": 5,
+                "boost_target": 22,
+                "afr_target": 11.8,
+                "rev_limit": 7800,
+            })
+
+    def _status_response(self):
+        telemetry = self.simulator.telemetry
+        tune = self.simulator.tune
+        return (
+            f"Engine is {'ON' if self.simulator.engine_on else 'OFF'}. "
+            f"Mode: {tune['mode']}. RPM: {int(telemetry['rpm'])}. "
+            f"Boost: {telemetry['boost']:.1f} PSI. AFR: {telemetry['afr']:.1f}."
+        )
+
+    def process(self, message):
+        text = (message or "").strip()
+        if not text:
+            return "Please provide a command or question."
+        if len(text) > self.MAX_MESSAGE_LENGTH:
+            return f"Message too long. Please keep it under {self.MAX_MESSAGE_LENGTH} characters."
+
+        with self.lock:
+            self._add_memory("user", text)
+            command_response = self._handle_command(text)
+            lowered = text.lower()
+            if command_response:
+                response = command_response
+            elif "status" in lowered or "telemetry" in lowered:
+                response = self._status_response()
+            elif "memory" in lowered or "history" in lowered:
+                response = f"I currently remember {len(self.history)} messages."
+            else:
+                response = (
+                    "I can control the simulator and answer status questions. "
+                    "Try: start engine, stop engine, set mode performance, or show status."
+                )
+            self._add_memory("assistant", response)
+            return response
+
+    def clear(self):
+        with self.lock:
+            self.history = []
+            self._save_history()
+
+chat_assistant = ChatAssistant(vehicle)
+
 def telemetry_thread():
     """Background thread for telemetry updates"""
     while True:
@@ -309,6 +459,24 @@ def get_status():
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
         "engine_config": vehicle.engine_config
+    })
+
+@app.route('/api/chat/history', methods=['GET'])
+def get_chat_history():
+    return jsonify({"history": chat_assistant.history})
+
+@app.route('/api/chat/clear', methods=['POST'])
+def clear_chat_history():
+    chat_assistant.clear()
+    return jsonify({"status": "cleared"})
+
+@app.route('/api/chat/message', methods=['POST'])
+def chat_message():
+    data = request.json or {}
+    response = chat_assistant.process(data.get('message', ''))
+    return jsonify({
+        "response": response,
+        "history": chat_assistant.history
     })
 
 @socketio.on('connect')
