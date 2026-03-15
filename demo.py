@@ -26,33 +26,63 @@ def simulate_typing(text, delay=0.02):
 
 def demo_engine_research():
     """Demonstrate engine research capabilities"""
-    print_header("🔍 DEMO: Engine Research")
+    print_header("🔍 DEMO: LS2 6.0L V8 Engine Research")
     
     print("Engine Specifications:")
-    print("  • Displacement: 2.0L")
-    print("  • Cylinders: 4")
-    print("  • Aspiration: Turbocharged")
-    print("  • Stock Boost: 12 PSI")
+    print("  • Engine: GM LS2 (Gen IV Small Block)")
+    print("  • Displacement: 6.0L (364 ci)")
+    print("  • Configuration: V8, OHV")
+    print("  • Aspiration: Naturally Aspirated")
+    print("  • Compression Ratio: 10.9:1")
+    print("  • Stock Power: 400 HP / 400 lb-ft")
     
-    print_section("Researching engine specifications and limitations...")
+    print_section("Researching LS2 engine specifications, cam specs, and fuel system...")
     time.sleep(1)
     
     agent = AITuningAgent()
     research = agent.research_engine({
-        "displacement": 2.0,
-        "cylinders": 4,
-        "aspiration": "turbocharged",
-        "max_boost": 15.0
+        "model": "ls2",
+        "displacement": 6.0,
+        "cylinders": 8,
+        "aspiration": "naturally_aspirated",
+        "cam_profile": "ls2_stock",
+        "fuel_system": "ls2_stock"
     })
     
     print("✅ Research Complete!\n")
     print(f"Engine Type: {research['engine_type']}")
-    print(f"Safe Boost Limit: {research['safe_boost_limit']} PSI")
-    print(f"Modified Engine Max: {research['max_boost_modified']} PSI")
+    print(f"Bore × Stroke: {research['bore_stroke']}")
+    print(f"Compression Ratio: {research['compression_ratio']}:1")
+    print(f"Stock HP: {research['stock_hp']} HP")
+    print(f"Estimated HP (current config): {research['estimated_hp']} HP")
+    
+    print("\n🔩 Cam Specifications (Stock):")
+    cam = research['cam_spec']['current_profile']
+    print(f"  • Name: {cam['name']}")
+    print(f"  • Intake Duration @ 0.050\": {cam['intake_duration_at_050']}°")
+    print(f"  • Exhaust Duration @ 0.050\": {cam['exhaust_duration_at_050']}°")
+    print(f"  • Intake Lift: {cam['intake_lift']}\"")
+    print(f"  • Exhaust Lift: {cam['exhaust_lift']}\"")
+    print(f"  • Lobe Separation Angle: {cam['lobe_separation_angle']}°")
+    print(f"  • Grind Type: {cam['grind_type']}")
+    print(f"  • Optimal RPM Range: {cam['rpm_range'][0]} - {cam['rpm_range'][1]}")
+    
+    print("\n⛽ Fuel System (Stock):")
+    fuel = research['fuel_system']['current_setup']
+    print(f"  • Injector Flow Rate: {fuel['injector_flow_rate']} lb/hr")
+    print(f"  • Fuel Rail Pressure: {fuel['fuel_rail_pressure']} PSI")
+    print(f"  • Fuel Pump Flow: {fuel['fuel_pump_flow']} GPH")
+    print(f"  • System Type: {fuel['fuel_system_type']}")
+    print(f"  • Max Supported HP: {fuel['max_supported_hp']} HP")
+    print(f"  • Injector Duty @ Peak: {research['fuel_system']['injector_duty_at_peak']}%")
     
     print("\n📊 AFR Recommendations:")
     for scenario, afr in research['afr_recommendations'].items():
         print(f"  • {scenario.replace('_', ' ').title()}: {afr}:1")
+    
+    print("\n🔧 Timing Guidelines:")
+    for param, value in research['timing_guidelines'].items():
+        print(f"  • {param.replace('_', ' ').title()}: {value}°")
     
     print("\n⚠️ Common Issues:")
     for issue in research['common_issues']:
@@ -61,6 +91,14 @@ def demo_engine_research():
     print("\n🔧 Recommended Modifications:")
     for mod in research['recommended_mods']:
         print(f"  • {mod}")
+    
+    # Show cam upgrade options
+    print("\n📋 Available Cam Profiles:")
+    for key in research['cam_spec']['available_profiles']:
+        cam_info = agent.cam_profiles[key]
+        print(f"  • {cam_info['name']}: {cam_info['intake_duration_at_050']}°/{cam_info['exhaust_duration_at_050']}° dur, "
+              f"{cam_info['intake_lift']}\"/{ cam_info['exhaust_lift']}\" lift, "
+              f"+{cam_info['estimated_hp_gain']}hp")
     
     input("\nPress Enter to continue...")
 
@@ -116,23 +154,25 @@ def demo_driving_analysis():
     input("\nPress Enter to continue...")
 
 def demo_tune_generation():
-    """Demonstrate AI tune generation"""
-    print_header("⚙️ DEMO: AI Tune Generation")
+    """Demonstrate AI tune generation for LS2"""
+    print_header("⚙️ DEMO: LS2 AI Tune Generation")
     
     print("Vehicle Configuration:")
-    print("  • Engine: 2.0L Turbocharged I4")
+    print("  • Engine: GM LS2 6.0L V8")
+    print("  • Cam: Street Performance (218°/228° duration)")
+    print("  • Fuel System: Stage 1 (36 lb/hr injectors)")
     print("  • Modifications:")
-    print("    - Upgraded intercooler")
-    print("    - High-flow fuel pump")
+    print("    - Long-tube headers")
     print("    - Cold air intake")
-    print("  • Safety Priority: HIGH")
+    print("    - High-flow exhaust")
+    print("  • Safety Priority: MEDIUM")
     
-    print_section("Generating optimized tune...")
+    print_section("Generating optimized LS2 tune...")
     time.sleep(1.5)
     
     agent = AITuningAgent()
     
-    # Simulate mixed driving pattern
+    # Simulate performance driving pattern
     pattern = {
         "driving_style": "performance",
         "recommendation": "Performance-oriented tune",
@@ -140,17 +180,24 @@ def demo_tune_generation():
             "avg_throttle": 65.0,
             "max_throttle": 95.0,
             "avg_rpm": 4500,
-            "max_rpm": 6800,
-            "avg_boost": 12.0,
-            "max_boost": 16.0
+            "max_rpm": 6200,
+            "avg_boost": 0,
+            "max_boost": 0
         }
     }
     
     tune = agent.generate_tune(
-        {"displacement": 2.0, "cylinders": 4, "aspiration": "turbocharged", "max_boost": 15.0},
+        {
+            "model": "ls2",
+            "displacement": 6.0,
+            "cylinders": 8,
+            "aspiration": "naturally_aspirated",
+            "cam_profile": "ls2_street_performance",
+            "fuel_system": "ls2_stage1"
+        },
         pattern,
-        ["Upgraded intercooler", "High-flow fuel pump", "Cold air intake"],
-        safety_priority="high"
+        ["Long-tube headers", "Cold air intake", "High-flow exhaust"],
+        safety_priority="medium"
     )
     
     print("✅ Tune Generated!\n")
@@ -159,15 +206,30 @@ def demo_tune_generation():
     print("📋 Tune Parameters:")
     print(f"  • Fuel Map Adjustment: {params['fuel_map_adjustment']:+d}%")
     print(f"  • Timing Adjustment: {params['timing_adjustment']:+d}°")
-    print(f"  • Boost Target: {params['boost_target']} PSI")
     print(f"  • AFR Target: {params['afr_target']}")
     print(f"  • Rev Limit: {params['rev_limit']} RPM")
+    print(f"  • Cam Profile: {params.get('cam_profile', 'N/A')}")
+    print(f"  • Fuel System: {params.get('fuel_system', 'N/A')}")
     
     print(f"\n🎯 Confidence Level: {tune['confidence']*100:.0f}%")
     
     print("\n📈 Expected Performance Gains:")
     for metric, gain in tune['expected_gains'].items():
-        print(f"  • {metric.title()}: {gain}")
+        print(f"  • {metric.replace('_', ' ').title()}: {gain}")
+    
+    print("\n🔩 Cam Analysis:")
+    cam = tune.get('cam_analysis', {})
+    print(f"  • Profile: {cam.get('profile', 'N/A')}")
+    print(f"  • RPM Range: {cam.get('rpm_range', 'N/A')}")
+    print(f"  • HP Gain: +{cam.get('estimated_hp_gain', 0)}hp")
+    print(f"  • Idle Quality: {cam.get('idle_quality', 'N/A')}")
+    
+    print("\n⛽ Fuel System Analysis:")
+    fuel = tune.get('fuel_system_analysis', {})
+    print(f"  • Setup: {fuel.get('setup', 'N/A')}")
+    print(f"  • Injector Duty @ Peak: {fuel.get('injector_duty_at_peak', 0)}%")
+    print(f"  • HP Headroom: {fuel.get('headroom_hp', 0)}hp")
+    print(f"  • Adequate: {'✅ Yes' if fuel.get('adequate', False) else '❌ No - upgrade needed'}")
     
     if tune['warnings']:
         print("\n⚠️ Warnings:")
