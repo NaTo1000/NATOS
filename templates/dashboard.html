@@ -567,7 +567,15 @@
     </div>
     
     <script>
-        const socket = typeof io === 'function' ? io() : { on: () => {}, emit: () => {} };
+        const socket = typeof io === 'function'
+            ? io()
+            : {
+                on: () => {},
+                emit: () => {},
+                off: () => {},
+                connect: () => {},
+                disconnect: () => {}
+            };
         const chartsAvailable = typeof Chart !== 'undefined';
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
@@ -892,11 +900,19 @@
         }
 
         async function loadChatHistory() {
-            const response = await fetch('/api/chat/history');
-            const data = await response.json();
             const messages = document.getElementById('chatMessages');
-            messages.innerHTML = '';
-            data.history.forEach(item => appendChatMessage(item.role, item.message));
+            try {
+                const response = await fetch('/api/chat/history');
+                if (!response.ok) {
+                    throw new Error('Unable to load chat history');
+                }
+                const data = await response.json();
+                messages.innerHTML = '';
+                data.history.forEach(item => appendChatMessage(item.role, item.message));
+            } catch (error) {
+                messages.innerHTML = '';
+                appendChatMessage('assistant', 'Unable to load chat history right now.');
+            }
         }
 
         async function sendChatMessage(messageOverride) {
@@ -907,19 +923,30 @@
             appendChatMessage('user', message);
             input.value = '';
 
-            const response = await fetch('/api/chat/message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message })
-            });
-            const data = await response.json();
-            appendChatMessage('assistant', data.response);
-            speakResponse(data.response);
+            try {
+                const response = await fetch('/api/chat/message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                if (!response.ok) {
+                    throw new Error('Unable to send message');
+                }
+                const data = await response.json();
+                appendChatMessage('assistant', data.response);
+                speakResponse(data.response);
+            } catch (error) {
+                appendChatMessage('assistant', 'Message failed to send. Please try again.');
+            }
         }
 
         async function clearChatMemory() {
-            await fetch('/api/chat/clear', { method: 'POST' });
-            document.getElementById('chatMessages').innerHTML = '';
+            try {
+                await fetch('/api/chat/clear', { method: 'POST' });
+                document.getElementById('chatMessages').innerHTML = '';
+            } catch (error) {
+                appendChatMessage('assistant', 'Unable to clear memory right now.');
+            }
         }
 
         function initializeVoiceControl() {
@@ -936,6 +963,12 @@
                 const transcript = event.results[0][0].transcript;
                 document.getElementById('chatInput').value = transcript;
                 sendChatMessage(transcript);
+            };
+
+            recognition.onerror = function() {
+                listening = false;
+                document.getElementById('voiceBtn').textContent = '🎤 Voice';
+                appendChatMessage('assistant', 'Voice control unavailable. Please allow microphone access and try again.');
             };
 
             recognition.onend = function() {
@@ -963,6 +996,7 @@
             if (!window.speechSynthesis) {
                 return;
             }
+            window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.0;
             window.speechSynthesis.speak(utterance);

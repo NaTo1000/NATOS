@@ -13,6 +13,7 @@ import time
 import random
 import json
 import os
+import re
 from datetime import datetime
 
 app = Flask(__name__)
@@ -222,10 +223,15 @@ vehicle = VehicleSimulator()
 
 class ChatAssistant:
     """Simple local chat assistant with persistent memory."""
+    MAX_MESSAGE_LENGTH = 500
 
     def __init__(self, simulator):
         self.simulator = simulator
-        self.memory_file = os.path.join('/tmp', 'natos_chat_memory.json')
+        self.max_history_length = int(os.getenv('NATOS_CHAT_MAX_HISTORY', '200'))
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        memory_dir = os.path.join(base_dir, 'data')
+        os.makedirs(memory_dir, exist_ok=True)
+        self.memory_file = os.path.join(memory_dir, 'chat_memory.json')
         self.lock = threading.Lock()
         self.history = self._load_history()
 
@@ -249,8 +255,8 @@ class ChatAssistant:
             pass
 
     def _trim_history(self):
-        if len(self.history) > 200:
-            self.history = self.history[-200:]
+        if len(self.history) > self.max_history_length:
+            self.history = self.history[-self.max_history_length:]
 
     def _add_memory(self, role, message):
         self.history.append({
@@ -263,16 +269,22 @@ class ChatAssistant:
 
     def _handle_command(self, text):
         lowered = text.lower()
-        if "start engine" in lowered:
+        if re.search(r'^(please\s+)?(start|turn on)\s+(the\s+)?engine\b', lowered):
             self.simulator.start()
             return "Engine started. Telemetry streaming is now active."
-        if "stop engine" in lowered:
+        if re.search(r'^(please\s+)?(stop|shut down|turn off)\s+(the\s+)?engine\b', lowered):
             self.simulator.stop()
             return "Engine stopped."
-        for mode in ("stock", "economy", "performance", "modified"):
-            if f"{mode} mode" in lowered or f"set mode {mode}" in lowered:
-                self._apply_mode(mode)
-                return f"Set tune mode to {mode}."
+        mode_match = re.search(r'\b(set|switch|change)\s+(to\s+)?(stock|economy|performance|modified)\s+mode\b', lowered)
+        if mode_match:
+            mode = mode_match.group(3)
+            self._apply_mode(mode)
+            return f"Set tune mode to {mode}."
+        direct_mode_match = re.search(r'^(stock|economy|performance|modified)\s+mode\b', lowered)
+        if direct_mode_match:
+            mode = direct_mode_match.group(1)
+            self._apply_mode(mode)
+            return f"Set tune mode to {mode}."
         return None
 
     def _apply_mode(self, mode):
@@ -326,8 +338,8 @@ class ChatAssistant:
         text = (message or "").strip()
         if not text:
             return "Please provide a command or question."
-        if len(text) > 500:
-            return "Message too long. Please keep it under 500 characters."
+        if len(text) > self.MAX_MESSAGE_LENGTH:
+            return f"Message too long. Please keep it under {self.MAX_MESSAGE_LENGTH} characters."
 
         with self.lock:
             self._add_memory("user", text)
