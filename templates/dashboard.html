@@ -325,14 +325,27 @@
                 </div>
                 <button class="btn btn-start" onclick="startEngine()">Start Engine</button>
                 <button class="btn btn-stop" onclick="stopEngine()">Stop Engine</button>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,255,136,0.2);">
+                    <div style="color: #aaa; font-size: 0.85em; margin-bottom: 8px;">ENGINE PROFILE</div>
+                    <button class="btn btn-mode active" onclick="setEngineProfile('2.0t_i4')" id="profile-2.0t_i4" style="font-size: 0.85em;">2.0T I4 Turbo</button>
+                    <button class="btn btn-mode" onclick="setEngineProfile('ls1_v8')" id="profile-ls1_v8" style="font-size: 0.85em; background: rgba(255, 136, 0, 0.15); border-color: rgba(255, 136, 0, 0.5);">LS1 5.7L V8</button>
+                </div>
             </div>
             
-            <div class="control-card">
-                <h3>🎯 Tuning Mode</h3>
+            <div class="control-card" id="tuning-panel-i4">
+                <h3>🎯 Tuning Mode (2.0T I4)</h3>
                 <button class="btn btn-mode active" onclick="setMode('stock')" id="mode-stock">Stock</button>
                 <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
                 <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
                 <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+            </div>
+
+            <div class="control-card" id="tuning-panel-ls1" style="display: none;">
+                <h3>🎯 LS1 Advanced Tuning</h3>
+                <button class="btn btn-mode" onclick="setMode('ls1_stock')" id="mode-ls1_stock">LS1 Stock</button>
+                <button class="btn btn-mode" onclick="setMode('ls1_street')" id="mode-ls1_street">LS1 Street</button>
+                <button class="btn btn-mode" onclick="setMode('ls1_performance')" id="mode-ls1_performance">LS1 Performance ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('ls1_race')" id="mode-ls1_race">LS1 Race ⚠️⚠️</button>
             </div>
             
             <div class="control-card">
@@ -637,6 +650,15 @@
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
             updateCharts(data.telemetry);
+            
+            // Sync engine profile state from server
+            if (data.engine_profile && data.engine_profile !== currentProfile) {
+                currentProfile = data.engine_profile;
+                document.getElementById('profile-2.0t_i4').classList.toggle('active', currentProfile === '2.0t_i4');
+                document.getElementById('profile-ls1_v8').classList.toggle('active', currentProfile === 'ls1_v8');
+                document.getElementById('tuning-panel-i4').style.display = currentProfile === '2.0t_i4' ? '' : 'none';
+                document.getElementById('tuning-panel-ls1').style.display = currentProfile === 'ls1_v8' ? '' : 'none';
+            }
         });
         
         function updateTelemetry(telemetry) {
@@ -758,6 +780,8 @@
         }
         
         // Control functions
+        let currentProfile = '2.0t_i4';
+        
         async function startEngine() {
             const response = await fetch('/api/engine/start', { method: 'POST' });
             const data = await response.json();
@@ -771,10 +795,58 @@
             document.getElementById('engineStatusText').textContent = 'Engine: OFF';
         }
         
+        async function setEngineProfile(profile) {
+            if (profile === currentProfile) return;
+            
+            const label = profile === 'ls1_v8' ? 'LS1 5.7L V8' : '2.0T Inline-4';
+            if (!confirm(`Switch to ${label} engine profile?\n\nThis will stop the current engine and reset tune parameters.`)) {
+                return;
+            }
+            
+            const response = await fetch('/api/engine/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profile: profile })
+            });
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                currentProfile = profile;
+                
+                // Update profile button states
+                document.getElementById('profile-2.0t_i4').classList.toggle('active', profile === '2.0t_i4');
+                document.getElementById('profile-ls1_v8').classList.toggle('active', profile === 'ls1_v8');
+                
+                // Toggle tuning panels
+                document.getElementById('tuning-panel-i4').style.display = profile === '2.0t_i4' ? '' : 'none';
+                document.getElementById('tuning-panel-ls1').style.display = profile === 'ls1_v8' ? '' : 'none';
+                
+                // Update engine status
+                document.getElementById('engineStatus').className = 'status-indicator status-off';
+                document.getElementById('engineStatusText').textContent = 'Engine: OFF';
+                
+                // Reset active tune mode buttons
+                document.querySelectorAll('.btn-mode').forEach(btn => {
+                    if (btn.id.startsWith('mode-')) btn.classList.remove('active');
+                });
+                if (profile === 'ls1_v8') {
+                    document.getElementById('mode-ls1_stock').classList.add('active');
+                } else {
+                    document.getElementById('mode-stock').classList.add('active');
+                }
+            }
+        }
+        
         async function setMode(mode) {
-            // Show warning for modified mode
+            // Show warning for aggressive modes
             if (mode === 'modified' || mode === 'performance') {
                 if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            }
+            if (mode === 'ls1_performance' || mode === 'ls1_race') {
+                const levelText = mode === 'ls1_race' ? 'RACE' : 'PERFORMANCE';
+                if (!confirm(`⚠️ WARNING: LS1 ${levelText} mode uses aggressive timing and fueling!\n\nRequirements:\n• Premium 93+ octane fuel\n• Upgraded valve springs (above 6200 RPM)\n• Professional monitoring recommended\n\nProceed at your own risk!`)) {
                     return;
                 }
             }
@@ -785,11 +857,13 @@
                 body: JSON.stringify({ mode: mode })
             });
             
-            // Update button states
-            document.querySelectorAll('.btn-mode').forEach(btn => {
+            // Update button states within the active tuning panel
+            const panelId = mode.startsWith('ls1_') ? 'tuning-panel-ls1' : 'tuning-panel-i4';
+            document.querySelectorAll(`#${panelId} .btn-mode`).forEach(btn => {
                 btn.classList.remove('active');
             });
-            document.getElementById('mode-' + mode).classList.add('active');
+            const modeBtn = document.getElementById('mode-' + mode);
+            if (modeBtn) modeBtn.classList.add('active');
         }
         
         function openAITuner() {
