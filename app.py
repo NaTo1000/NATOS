@@ -13,6 +13,8 @@ import time
 import random
 import json
 from datetime import datetime
+from performance_database import PerformanceDatabase
+from overlay_analyzer import OverlayAnalyzer, StartingPointFinder, PerformanceScorer
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
@@ -310,6 +312,55 @@ def get_status():
         "tune": vehicle.tune,
         "engine_config": vehicle.engine_config
     })
+
+# ----- Performance Database API endpoints -----
+perf_db = PerformanceDatabase()
+overlay_analyzer = OverlayAnalyzer(perf_db)
+starting_point_finder = StartingPointFinder(perf_db)
+perf_scorer = PerformanceScorer(perf_db)
+
+@app.route('/api/database/engines', methods=['GET'])
+def list_engines():
+    """List all engines in the performance database."""
+    return jsonify({"engines": perf_db.list_engines()})
+
+@app.route('/api/database/engines/<engine_id>', methods=['GET'])
+def get_engine(engine_id):
+    """Get detailed engine profile including dyno data."""
+    engine = perf_db.get_engine(engine_id)
+    if engine is None:
+        return jsonify({"error": f"Engine '{engine_id}' not found"}), 404
+    return jsonify(engine)
+
+@app.route('/api/database/engines/<engine_id>/dyno', methods=['GET'])
+def get_dyno(engine_id):
+    """Get dyno data for an engine variant."""
+    variant = request.args.get('variant', 'stock')
+    dyno = perf_db.get_dyno_data(engine_id, variant)
+    if dyno is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"engine_id": engine_id, "variant": variant, "dyno_data": dyno})
+
+@app.route('/api/database/engines/<engine_id>/score', methods=['GET'])
+def get_score(engine_id):
+    """Score an engine variant."""
+    variant = request.args.get('variant', 'stock')
+    score = perf_scorer.score_tune(engine_id, variant)
+    return jsonify(score)
+
+@app.route('/api/database/starting-point/<category>', methods=['GET'])
+def get_starting_point(category):
+    """Get the optimal starting point for an engine category."""
+    result = starting_point_finder.find_optimal_starting_point(category)
+    return jsonify(result)
+
+@app.route('/api/database/overlay/torque', methods=['POST'])
+def overlay_torque():
+    """Overlay torque curves for specified engines."""
+    data = request.json or {}
+    engine_ids = data.get('engine_ids', [e['engine_id'] for e in perf_db.list_engines()])
+    result = overlay_analyzer.overlay_torque_curves(engine_ids)
+    return jsonify({"envelope": result.get("envelope", {})})
 
 @socketio.on('connect')
 def handle_connect():

@@ -1,14 +1,40 @@
 """
 NATOS AI Tuning Agent
 Autonomous tuning system with internet research capabilities
+
+Now backed by a comprehensive performance database, tuning algorithm
+research, and statistical overlay analysis to find optimal starting
+points across engine categories.
 """
 
 import os
 import json
 from typing import Dict, List, Any
 
+from performance_database import PerformanceDatabase
+from tuning_algorithms import (
+    MapInterpolationTuner,
+    PIDFuelTrimTuner,
+    IterativeOptimizer,
+    GeneticAlgorithmTuner,
+    VolumetricEfficiencyModel,
+    TuningAlgorithmComparator,
+)
+from overlay_analyzer import (
+    OverlayAnalyzer,
+    StartingPointFinder,
+    PerformanceScorer,
+    AnalysisReport,
+)
+
+
 class AITuningAgent:
-    """AI agent that researches and creates optimal ECU tunes"""
+    """AI agent that researches and creates optimal ECU tunes.
+
+    Integrates the performance database (15 engine profiles, 60 variants),
+    five tuning algorithms, and the overlay analyser to derive data-driven
+    starting points.
+    """
     
     def __init__(self):
         # AI client would be initialized here in production
@@ -18,6 +44,21 @@ class AITuningAgent:
             "modifications": {},
             "tuning_strategies": {}
         }
+        
+        # Performance database and analysis tools
+        self.perf_db = PerformanceDatabase()
+        self.overlay = OverlayAnalyzer(self.perf_db)
+        self.starting_point_finder = StartingPointFinder(self.perf_db)
+        self.scorer = PerformanceScorer(self.perf_db)
+        self.report_gen = AnalysisReport(self.perf_db)
+        
+        # Tuning algorithm suite
+        self.map_tuner = MapInterpolationTuner()
+        self.pid_tuner = PIDFuelTrimTuner()
+        self.iterative_opt = IterativeOptimizer()
+        self.genetic_opt = GeneticAlgorithmTuner()
+        self.ve_model = VolumetricEfficiencyModel()
+        self.algo_comparator = TuningAlgorithmComparator()
         
     def research_engine(self, engine_specs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -281,6 +322,109 @@ class AITuningAgent:
             "severity": "critical" if "CRITICAL" in str(reasons) else "warning" if reasons else "normal"
         }
 
+    # ------------------------------------------------------------------
+    # Database-backed research & analysis methods
+    # ------------------------------------------------------------------
+
+    def research_from_database(self, engine_id: str) -> Dict[str, Any]:
+        """Research an engine using the performance database.
+        
+        Args:
+            engine_id: Engine identifier from the database.
+            
+        Returns:
+            Comprehensive research data including dyno curves,
+            all tuned variants, and scoring.
+        """
+        engine = self.perf_db.get_engine(engine_id)
+        if engine is None:
+            return {"error": f"Engine '{engine_id}' not found in database"}
+        
+        variants = self.perf_db.get_all_variants(engine_id)
+        stock_dyno = self.perf_db.get_dyno_data(engine_id, "stock")
+        stock_score = self.scorer.score_tune(engine_id, "stock")
+        
+        variant_scores = {}
+        for v in variants:
+            vname = v["variant"]
+            variant_scores[vname] = self.scorer.score_tune(engine_id, vname)
+        
+        return {
+            "engine": engine,
+            "stock_dyno": stock_dyno,
+            "variants": variants,
+            "stock_score": stock_score,
+            "variant_scores": variant_scores,
+        }
+
+    def get_optimal_starting_point(self, category: str = "all") -> Dict[str, Any]:
+        """Find the optimal starting point for a given engine category.
+        
+        This method overlays data from all engines and tuned variants
+        in the category, runs iterative and genetic optimisation, and
+        returns the consensus tune parameters with confidence scores.
+        
+        Args:
+            category: One of "4cyl_turbo", "6cyl_turbo", "v8_na",
+                      "v8_forced", "v6_na", "v6_turbo", "diesel",
+                      "rotary", "high_performance", or "all".
+                      
+        Returns:
+            Dict with tune_parameters, confidence, and supporting data.
+        """
+        return self.starting_point_finder.find_optimal_starting_point(category)
+
+    def get_all_starting_points(self) -> Dict[str, Any]:
+        """Find optimal starting points for every engine category.
+        
+        Returns:
+            Dict mapping category name to its starting point analysis.
+        """
+        return self.starting_point_finder.find_all_starting_points()
+
+    def compare_algorithms_for_engine(self, engine_id: str,
+                                       target: str = "power") -> Dict[str, Any]:
+        """Compare all tuning algorithms on a single engine.
+        
+        Args:
+            engine_id: Engine to optimise.
+            target: Optimisation target ("power", "economy", "balanced").
+            
+        Returns:
+            Comparison results for each algorithm.
+        """
+        return self.algo_comparator.compare_all(engine_id, target)
+
+    def generate_engine_report(self, engine_id: str) -> str:
+        """Generate a full analysis report for an engine.
+        
+        Args:
+            engine_id: Engine identifier.
+            
+        Returns:
+            Formatted report string.
+        """
+        return self.report_gen.generate_engine_report(engine_id)
+
+    def generate_category_report(self, category: str) -> str:
+        """Generate analysis report for an engine category.
+        
+        Args:
+            category: Engine category name.
+            
+        Returns:
+            Formatted report string.
+        """
+        return self.report_gen.generate_category_report(category)
+
+    def list_database_engines(self) -> List[Dict[str, Any]]:
+        """List all engines available in the performance database.
+        
+        Returns:
+            List of engine summary dicts.
+        """
+        return self.perf_db.list_engines()
+
 def example_usage():
     """Example of how to use the AI Tuning Agent"""
     
@@ -332,6 +476,51 @@ def example_usage():
         {}
     )
     print(json.dumps(adaptation, indent=2))
+
+    # ---- New database-backed features ----
+
+    print("\n" + "=" * 60)
+    print("📦 PERFORMANCE DATABASE")
+    print("=" * 60)
+
+    engines = agent.list_database_engines()
+    print(f"\nEngines in database: {len(engines)}")
+    for e in engines:
+        print(f"  • {e['engine_id']}: {e['name']} "
+              f"({e['stock_power_hp']:.0f} hp)")
+
+    print("\n" + "=" * 60)
+    print("🔬 DATABASE-BACKED ENGINE RESEARCH (2.0L Turbo I4)")
+    print("=" * 60)
+    db_research = agent.research_from_database("20t_i4")
+    if "error" not in db_research:
+        print(f"\nStock score: {db_research['stock_score']['composite']}/100")
+        for vname, vscore in db_research["variant_scores"].items():
+            print(f"  {vname}: {vscore['composite']}/100 "
+                  f"({vscore['peak_power_hp']:.0f} hp)")
+
+    print("\n" + "=" * 60)
+    print("🎯 OPTIMAL STARTING POINT — 4-Cylinder Turbo Category")
+    print("=" * 60)
+    sp = agent.get_optimal_starting_point("4cyl_turbo")
+    print(f"\nCategory: {sp['category_label']}")
+    print(f"Engines analysed: {sp['engines_analysed']}")
+    print(f"Confidence: {sp['confidence']:.1f}%")
+    print("\nRecommended tune parameters:")
+    for param, info in sp["tune_parameters"].items():
+        print(f"  {param}: {info['recommended']:.2f} "
+              f"(±{info.get('stdev', 0):.2f})")
+
+    print("\n" + "=" * 60)
+    print("⚡ ALGORITHM COMPARISON (2.0L Turbo I4)")
+    print("=" * 60)
+    comparison = agent.compare_algorithms_for_engine("20t_i4", "power")
+    for algo_name, result in comparison.items():
+        if isinstance(result, dict):
+            print(f"\n  {algo_name}:")
+            for k, v in result.items():
+                if not isinstance(v, (dict, list)):
+                    print(f"    {k}: {v}")
 
 if __name__ == "__main__":
     example_usage()

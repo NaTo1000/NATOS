@@ -35,8 +35,16 @@ ATMOSPHERIC_KPA = 101.325
 
 
 def _sorted_keys(d: Dict[int, Any]) -> List[int]:
-    """Return the integer keys of *d* in ascending order."""
-    return sorted(d.keys())
+    """Return the numeric keys of *d* in ascending order (coerces strings)."""
+    return sorted(int(k) if isinstance(k, str) else k for k in d.keys())
+
+
+def _map_get(d: dict, key: int):
+    """Lookup *key* in dict *d*, trying int then str form."""
+    try:
+        return d[key]
+    except KeyError:
+        return d[str(key)]
 
 
 # ===================================================================
@@ -99,12 +107,12 @@ class MapInterpolationTuner:
                     ld_lo = load_keys[max(j - 1, 0)]
                     break
             if ld_hi == ld_lo:
-                return row[ld_lo]
+                return _map_get(row, ld_lo)
             frac = (ld - ld_lo) / (ld_hi - ld_lo)
-            return row[ld_lo] + frac * (row[ld_hi] - row[ld_lo])
+            return _map_get(row, ld_lo) + frac * (_map_get(row, ld_hi) - _map_get(row, ld_lo))
 
-        val_lo = _interp_load(map_data[rpm_lo], load)
-        val_hi = _interp_load(map_data[rpm_hi], load)
+        val_lo = _interp_load(_map_get(map_data, rpm_lo), load)
+        val_hi = _interp_load(_map_get(map_data, rpm_hi), load)
 
         if rpm_hi == rpm_lo:
             return val_lo
