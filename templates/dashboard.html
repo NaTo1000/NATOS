@@ -333,6 +333,7 @@
                 <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
                 <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
                 <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('ls3_big_boost')" id="mode-ls3_big_boost" style="border-color: #ff6600; color: #ff6600;">LS3 Big Boost 🔥</button>
             </div>
             
             <div class="control-card">
@@ -340,6 +341,79 @@
                 <button class="btn btn-mode" onclick="openAITuner()">Launch AI Tuner</button>
                 <button class="btn btn-mode" onclick="researchEngine()">Research Engine</button>
                 <button class="btn btn-mode" onclick="optimizeTune()">Optimize Tune</button>
+            </div>
+            
+            <div class="control-card" id="nitrous-panel">
+                <h3>💨 Nitrous Oxide (NOS)</h3>
+                <div style="margin-bottom: 10px;">
+                    <span class="status-indicator status-off" id="nosStatus"></span>
+                    <span id="nosStatusText">NOS: DISARMED</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em;">Shot Type:</label>
+                    <select id="nosType" style="background: #222; color: #fff; border: 1px solid #00ff88; border-radius: 4px; padding: 4px; width: 100%;">
+                        <option value="wet">Wet (Fuel + NOS)</option>
+                        <option value="dry">Dry (NOS Only)</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em;">Shot Size:</label>
+                    <select id="nosShot" style="background: #222; color: #fff; border: 1px solid #00ff88; border-radius: 4px; padding: 4px; width: 100%;">
+                        <option value="75">75 HP</option>
+                        <option value="100" selected>100 HP</option>
+                        <option value="150">150 HP</option>
+                        <option value="200">200 HP ⚠️</option>
+                    </select>
+                </div>
+                <button class="btn btn-start" onclick="armNitrous()" id="btn-nos-arm">Arm NOS</button>
+                <button class="btn btn-stop" onclick="disarmNitrous()" id="btn-nos-disarm">Disarm NOS</button>
+                <button class="btn btn-mode" onclick="purgeNitrous()">Purge 💨</button>
+                <button class="btn btn-mode" onclick="refillNitrous()">Refill Bottle</button>
+                <div style="margin-top: 8px; text-align: center;">
+                    <span style="color: #aaa; font-size: 0.85em;">Bottle:</span>
+                    <span id="nosBottle" style="color: #00ff88; font-weight: bold;">900 PSI</span>
+                </div>
+            </div>
+            
+            <div class="control-card" id="overboost-panel">
+                <h3>🚀 Overboost Control</h3>
+                <div style="margin-bottom: 10px;">
+                    <span class="status-indicator status-off" id="overboostStatus"></span>
+                    <span id="overboostStatusText">Overboost: OFF</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em;">Boost Adder (PSI):</label>
+                    <input type="range" id="overboostAdder" min="2" max="12" value="6" style="width: 100%;" oninput="document.getElementById('obAdderVal').textContent = this.value">
+                    <span id="obAdderVal" style="color: #ff6600; font-weight: bold;">6</span> PSI
+                </div>
+                <button class="btn btn-start" onclick="enableOverboost()">Enable Overboost</button>
+                <button class="btn btn-stop" onclick="disableOverboost()">Disable Overboost</button>
+                <button class="btn btn-mode" onclick="activateOverboost()" id="btn-overboost-fire" style="border-color: #ff6600; color: #ff6600;">🔥 FIRE OVERBOOST</button>
+                <div style="margin-top: 8px; text-align: center;">
+                    <span id="overboostTimer" style="color: #aaa; font-size: 0.85em;"></span>
+                </div>
+            </div>
+            
+            <div class="control-card" id="transbrake-panel">
+                <h3>🏁 Transbrake Launch</h3>
+                <div style="margin-bottom: 10px;">
+                    <span class="status-indicator status-off" id="transbrakeStatus"></span>
+                    <span id="transbrakeStatusText">Transbrake: DISARMED</span>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em;">Launch RPM:</label>
+                    <input type="range" id="launchRpm" min="3000" max="7000" value="5000" step="100" style="width: 100%;" oninput="document.getElementById('launchRpmVal').textContent = this.value">
+                    <span id="launchRpmVal" style="color: #ff6600; font-weight: bold;">5000</span> RPM
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="color: #aaa; font-size: 0.85em;">Boost Build Target (PSI):</label>
+                    <input type="range" id="boostBuild" min="5" max="25" value="15" style="width: 100%;" oninput="document.getElementById('boostBuildVal').textContent = this.value">
+                    <span id="boostBuildVal" style="color: #ff6600; font-weight: bold;">15</span> PSI
+                </div>
+                <button class="btn btn-start" onclick="armTransbrake()">Arm Transbrake</button>
+                <button class="btn btn-mode" onclick="engageTransbrake()" id="btn-tb-engage" style="border-color: #ffaa00; color: #ffaa00;">Stage / Engage</button>
+                <button class="btn btn-stop" onclick="launchTransbrake()" id="btn-tb-launch" style="font-size: 1.2em;">🏁 LAUNCH!</button>
+                <button class="btn btn-mode" onclick="disarmTransbrake()">Disarm</button>
             </div>
         </div>
         
@@ -476,6 +550,24 @@
                 <div class="telemetry-label">Battery</div>
                 <div class="telemetry-value" id="voltage">14.2</div>
                 <div class="telemetry-unit">Volts</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-nos">
+                <div class="telemetry-label">Nitrous</div>
+                <div class="telemetry-value" id="nos-status" style="font-size: 1.2em;">DISARMED</div>
+                <div class="telemetry-unit" id="nos-bottle">Bottle: 900 PSI</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-overboost">
+                <div class="telemetry-label">Overboost</div>
+                <div class="telemetry-value" id="ob-status" style="font-size: 1.2em;">OFF</div>
+                <div class="telemetry-unit" id="ob-detail">---</div>
+            </div>
+            
+            <div class="telemetry-card" id="card-transbrake">
+                <div class="telemetry-label">Transbrake</div>
+                <div class="telemetry-value" id="tb-status" style="font-size: 1.2em;">DISARMED</div>
+                <div class="telemetry-unit" id="tb-detail">---</div>
             </div>
         </div>
         
@@ -637,6 +729,7 @@
             updateTuneInfo(data.tune);
             updateSafetyAlerts(data.safety);
             updateCharts(data.telemetry);
+            updateSystemStatus(data);
         });
         
         function updateTelemetry(telemetry) {
@@ -772,9 +865,15 @@
         }
         
         async function setMode(mode) {
-            // Show warning for modified mode
+            // Show warning for modified/ls3 modes
             if (mode === 'modified' || mode === 'performance') {
                 if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+                    return;
+                }
+            }
+            
+            if (mode === 'ls3_big_boost') {
+                if (!confirm(`🔥 LS3 BIG BOOST FULL TUNE 🔥\n\nThis activates the LS3 6.2L V8 twin-turbo configuration:\n• 24 PSI base boost target\n• +25% fuel enrichment\n• +6° timing advance\n• 7200 RPM rev limit\n• Overboost preset to +8 PSI\n• Transbrake preset to 5500 RPM / 18 PSI\n\n⚠️ REQUIRES: Forged internals, 1000cc injectors, race fuel!\n\nProceed?`)) {
                     return;
                 }
             }
@@ -787,9 +886,12 @@
             
             // Update button states
             document.querySelectorAll('.btn-mode').forEach(btn => {
-                btn.classList.remove('active');
+                if (btn.id && btn.id.startsWith('mode-')) {
+                    btn.classList.remove('active');
+                }
             });
-            document.getElementById('mode-' + mode).classList.add('active');
+            const modeBtn = document.getElementById('mode-' + mode);
+            if (modeBtn) modeBtn.classList.add('active');
         }
         
         function openAITuner() {
@@ -802,6 +904,208 @@
         
         function optimizeTune() {
             alert('⚡ Optimize Tune\n\nAI would analyze:\n• Current driving patterns\n• Temperature trends\n• Knock events\n• Fuel efficiency\n• Performance metrics\n\nThen suggest tune adjustments!\n\nFeature in development!');
+        }
+        
+        // --- System status update (NOS, Overboost, Transbrake) ---
+        function updateSystemStatus(data) {
+            // Nitrous status
+            const nosCard = document.getElementById('card-nos');
+            const nosStatusEl = document.getElementById('nos-status');
+            const nosBottleEl = document.getElementById('nos-bottle');
+            const nosIndicator = document.getElementById('nosStatus');
+            const nosText = document.getElementById('nosStatusText');
+            
+            if (data.nitrous) {
+                const nos = data.nitrous;
+                nosBottleEl.textContent = 'Bottle: ' + Math.round(nos.bottle_pressure) + ' PSI';
+                document.getElementById('nosBottle').textContent = Math.round(nos.bottle_pressure) + ' PSI';
+                
+                if (nos.active) {
+                    nosStatusEl.textContent = 'ACTIVE 🔥';
+                    nosStatusEl.style.color = '#ff4444';
+                    nosCard.classList.add('critical');
+                    nosCard.classList.remove('warning');
+                    nosIndicator.className = 'status-indicator status-on';
+                    nosIndicator.style.background = '#ff4444';
+                    nosText.textContent = 'NOS: SPRAYING!';
+                } else if (nos.armed) {
+                    nosStatusEl.textContent = 'ARMED';
+                    nosStatusEl.style.color = '#ffaa00';
+                    nosCard.classList.add('warning');
+                    nosCard.classList.remove('critical');
+                    nosIndicator.className = 'status-indicator status-on';
+                    nosIndicator.style.background = '#ffaa00';
+                    nosText.textContent = 'NOS: ARMED';
+                } else {
+                    nosStatusEl.textContent = 'DISARMED';
+                    nosStatusEl.style.color = '#00ff88';
+                    nosCard.classList.remove('warning', 'critical');
+                    nosIndicator.className = 'status-indicator status-off';
+                    nosIndicator.style.background = '';
+                    nosText.textContent = 'NOS: DISARMED';
+                }
+            }
+            
+            // Overboost status
+            const obCard = document.getElementById('card-overboost');
+            const obStatusEl = document.getElementById('ob-status');
+            const obDetailEl = document.getElementById('ob-detail');
+            const obIndicator = document.getElementById('overboostStatus');
+            const obText = document.getElementById('overboostStatusText');
+            
+            if (data.overboost) {
+                const ob = data.overboost;
+                if (ob.active) {
+                    const remaining = (ob.duration - ob.timer).toFixed(1);
+                    obStatusEl.textContent = '+' + ob.boost_adder + ' PSI';
+                    obStatusEl.style.color = '#ff6600';
+                    obDetailEl.textContent = remaining + 's remaining';
+                    obCard.classList.add('warning');
+                    obIndicator.className = 'status-indicator status-on';
+                    obIndicator.style.background = '#ff6600';
+                    obText.textContent = 'Overboost: ACTIVE';
+                    document.getElementById('overboostTimer').textContent = '⏱ ' + remaining + 's remaining';
+                } else if (ob.enabled) {
+                    obStatusEl.textContent = 'READY';
+                    obStatusEl.style.color = '#00ff88';
+                    obDetailEl.textContent = ob.cooldown_timer > 0 ? 'Cooldown: ' + ob.cooldown_timer.toFixed(1) + 's' : 'Ready to fire';
+                    obCard.classList.remove('warning');
+                    obIndicator.className = 'status-indicator status-on';
+                    obIndicator.style.background = '#00ff88';
+                    obText.textContent = 'Overboost: READY';
+                    document.getElementById('overboostTimer').textContent = ob.cooldown_timer > 0 ? '⏱ Cooldown: ' + ob.cooldown_timer.toFixed(1) + 's' : '✅ Ready';
+                } else {
+                    obStatusEl.textContent = 'OFF';
+                    obStatusEl.style.color = '#888';
+                    obDetailEl.textContent = '---';
+                    obCard.classList.remove('warning');
+                    obIndicator.className = 'status-indicator status-off';
+                    obIndicator.style.background = '';
+                    obText.textContent = 'Overboost: OFF';
+                    document.getElementById('overboostTimer').textContent = '';
+                }
+            }
+            
+            // Transbrake status
+            const tbCard = document.getElementById('card-transbrake');
+            const tbStatusEl = document.getElementById('tb-status');
+            const tbDetailEl = document.getElementById('tb-detail');
+            const tbIndicator = document.getElementById('transbrakeStatus');
+            const tbText = document.getElementById('transbrakeStatusText');
+            
+            if (data.transbrake) {
+                const tb = data.transbrake;
+                if (tb.engaged) {
+                    tbStatusEl.textContent = 'STAGED';
+                    tbStatusEl.style.color = '#ff4444';
+                    tbDetailEl.textContent = 'Building boost... READY TO LAUNCH';
+                    tbCard.classList.add('critical');
+                    tbCard.classList.remove('warning');
+                    tbIndicator.className = 'status-indicator status-on';
+                    tbIndicator.style.background = '#ff4444';
+                    tbText.textContent = 'Transbrake: STAGED';
+                } else if (tb.armed) {
+                    tbStatusEl.textContent = 'ARMED';
+                    tbStatusEl.style.color = '#ffaa00';
+                    tbDetailEl.textContent = 'Ready to stage';
+                    tbCard.classList.add('warning');
+                    tbCard.classList.remove('critical');
+                    tbIndicator.className = 'status-indicator status-on';
+                    tbIndicator.style.background = '#ffaa00';
+                    tbText.textContent = 'Transbrake: ARMED';
+                } else if (tb.launched) {
+                    tbStatusEl.textContent = 'LAUNCHED! 🏁';
+                    tbStatusEl.style.color = '#00ff88';
+                    tbDetailEl.textContent = 'GO GO GO!';
+                    tbCard.classList.remove('warning', 'critical');
+                    tbIndicator.className = 'status-indicator status-on';
+                    tbIndicator.style.background = '#00ff88';
+                    tbText.textContent = 'Transbrake: LAUNCHED';
+                } else {
+                    tbStatusEl.textContent = 'DISARMED';
+                    tbStatusEl.style.color = '#888';
+                    tbDetailEl.textContent = '---';
+                    tbCard.classList.remove('warning', 'critical');
+                    tbIndicator.className = 'status-indicator status-off';
+                    tbIndicator.style.background = '';
+                    tbText.textContent = 'Transbrake: DISARMED';
+                }
+            }
+        }
+        
+        // --- Nitrous control functions ---
+        async function armNitrous() {
+            const type = document.getElementById('nosType').value;
+            const shot = document.getElementById('nosShot').value;
+            if (!confirm('⚠️ ARM NITROUS OXIDE SYSTEM?\n\nType: ' + type.toUpperCase() + '\nShot: ' + shot + ' HP\n\nNitrous activates at WOT above 3500 RPM.\nEnsure fuel system and timing are configured!\n\nProceed?')) return;
+            await fetch('/api/nitrous/arm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: type, shot_size: parseInt(shot) })
+            });
+        }
+        
+        async function disarmNitrous() {
+            await fetch('/api/nitrous/disarm', { method: 'POST' });
+        }
+        
+        async function purgeNitrous() {
+            await fetch('/api/nitrous/purge', { method: 'POST' });
+        }
+        
+        async function refillNitrous() {
+            await fetch('/api/nitrous/refill', { method: 'POST' });
+        }
+        
+        // --- Overboost control functions ---
+        async function enableOverboost() {
+            const adder = document.getElementById('overboostAdder').value;
+            await fetch('/api/overboost/enable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boost_adder: parseFloat(adder) })
+            });
+        }
+        
+        async function disableOverboost() {
+            await fetch('/api/overboost/disable', { method: 'POST' });
+        }
+        
+        async function activateOverboost() {
+            const resp = await fetch('/api/overboost/activate', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok) {
+                alert('⚠️ ' + data.message);
+            }
+        }
+        
+        // --- Transbrake control functions ---
+        async function armTransbrake() {
+            const rpm = document.getElementById('launchRpm').value;
+            const boost = document.getElementById('boostBuild').value;
+            if (!confirm('🏁 ARM TRANSBRAKE LAUNCH MODE?\n\nLaunch RPM: ' + rpm + '\nBoost Build: ' + boost + ' PSI\n\nThis will engage the two-step rev limiter and build boost.\n\nProceed?')) return;
+            await fetch('/api/transbrake/arm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ launch_rpm: parseInt(rpm), boost_build_target: parseFloat(boost) })
+            });
+        }
+        
+        async function engageTransbrake() {
+            const resp = await fetch('/api/transbrake/engage', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok) {
+                alert('⚠️ ' + data.message);
+            }
+        }
+        
+        async function launchTransbrake() {
+            if (!confirm('🏁🏁🏁 RELEASE TRANSBRAKE AND LAUNCH?!\n\nThis will release the transbrake and launch the vehicle!\n\nLAUNCH?!')) return;
+            await fetch('/api/transbrake/launch', { method: 'POST' });
+        }
+        
+        async function disarmTransbrake() {
+            await fetch('/api/transbrake/disarm', { method: 'POST' });
         }
     </script>
 </body>
