@@ -61,7 +61,7 @@ class VehicleSimulator:
             "mode": "stock",
             "fuel_map_adjustment": 0,  # % change
             "timing_adjustment": 0,  # degrees
-            "boost_target": 0,  # PSI (0 = stock)
+            "boost_target": 12,  # PSI (stock turbo target)
             "afr_target": 14.7,
             "rev_limit": 7000,
         }
@@ -86,6 +86,7 @@ class VehicleSimulator:
         self.engine_on = True
         self.telemetry["rpm"] = 800 + random.randint(-50, 50)
         self.telemetry["oil_pressure"] = 30 + random.randint(-2, 2)
+        self.telemetry["gear"] = 1
         
     def stop(self):
         """Stop the engine"""
@@ -107,7 +108,11 @@ class VehicleSimulator:
         
         # RPM calculation
         target_rpm = 800 + (self.throttle_input / 100) * 6000
-        self.telemetry["rpm"] += (target_rpm - self.telemetry["rpm"]) * 0.1
+        if self.throttle_input < 5:
+            smoothing = 0.03
+        else:
+            smoothing = 0.1
+        self.telemetry["rpm"] += (target_rpm - self.telemetry["rpm"]) * smoothing
         self.telemetry["rpm"] = max(800, min(self.tune["rev_limit"], self.telemetry["rpm"]))
         
         # Speed calculation
@@ -124,9 +129,14 @@ class VehicleSimulator:
         # Boost calculation (turbo)
         if self.throttle_input > 30 and self.telemetry["rpm"] > 2500:
             boost_target = (self.throttle_input / 100) * self.tune.get("boost_target", 12)
-            self.telemetry["boost"] += (boost_target - self.telemetry["boost"]) * 0.05
+            spool_factor = 0.02 + (self.telemetry["rpm"] / 7000) * 0.08
+            self.telemetry["boost"] += (boost_target - self.telemetry["boost"]) * spool_factor
         else:
             self.telemetry["boost"] *= 0.9  # Boost decay
+            
+        max_allowed_boost = max(self.engine_config["max_boost"], self.tune.get("boost_target", 12)) + 2.0
+        if self.telemetry["boost"] > max_allowed_boost:
+            self.telemetry["boost"] -= (self.telemetry["boost"] - max_allowed_boost) * 0.3
             
         self.telemetry["boost"] = max(0, self.telemetry["boost"])
         self.telemetry["map"] = 14.7 + self.telemetry["boost"]
@@ -139,6 +149,10 @@ class VehicleSimulator:
             target_afr = 15.5  # Lean for economy
         else:
             target_afr = base_afr
+            
+        if self.telemetry["egt"] > 1400:
+            egt_enrichment = (self.telemetry["egt"] - 1400) / 200
+            target_afr -= egt_enrichment
             
         self.telemetry["afr"] += (target_afr - self.telemetry["afr"]) * 0.1
         self.telemetry["lambda"] = self.telemetry["afr"] / 14.7
@@ -166,16 +180,28 @@ class VehicleSimulator:
         rpm_factor = self.telemetry["rpm"] / 1000
         self.telemetry["oil_pressure"] = 10 + (rpm_factor * 10)
         
+        # Fuel pressure variation
+        self.telemetry["fuel_pressure"] = 43.5 + (load_factor * 5) - (rpm_factor * 0.3)
+        
+        # Battery voltage variation
+        self.telemetry["voltage"] = 14.4 - (load_factor * 0.4) - (rpm_factor * 0.03)
+        
         # Knock detection (simulated - more likely with aggressive timing/lean AFR)
         knock_probability = 0
         if self.telemetry["afr"] > 13.5 and self.telemetry["boost"] > 10:
             knock_probability = 0.02
         if self.tune["timing_adjustment"] > 3:
             knock_probability += 0.01
+        iat_factor = max(0, (self.telemetry["iat"] - 100) / 200) * 0.02
+        compression_factor = max(0, self.telemetry["boost"] / 20) * 0.01
+        knock_probability += iat_factor + compression_factor
             
         if random.random() < knock_probability:
             self.telemetry["knock_count"] += 1
             self.telemetry["ignition_timing"] -= 2  # Pull timing on knock
+        else:
+            if random.random() < 0.1:
+                self.telemetry["knock_count"] = max(0, self.telemetry["knock_count"] - 1)
             
         # Ignition timing
         base_timing = 15 + self.tune["timing_adjustment"]
@@ -293,12 +319,43 @@ def set_tune_mode():
             "afr_target": 11.8,
             "rev_limit": 7800,
         })
+    else:
+        return jsonify({"status": "error", "message": f"Unknown tune mode: {mode}"}), 400
     
-    return jsonify({"status": "success", "tune": vehicle.tune})
+    vehicle.tune["fuel_map_adjustment"] = max(-20, min(20, vehicle.tune["fuel_map_adjustment"]))
+    vehicle.tune["timing_adjustment"] = max(-10, min(10, vehicle.tune["timing_adjustment"]))
+    vehicle.tune["boost_target"] = max(0, min(30, vehicle.tune["boost_target"]))
+    vehicle.tune["afr_target"] = max(10.0, min(16.0, vehicle.tune["afr_target"]))
+    vehicle.tune["rev_limit"] = max(5000, min(8000, vehicle.tune["rev_limit"]))
+    
+    warnings = []
+    if vehicle.tune["boost_target"] > 18:
+        warnings.append("High boost target may reduce engine longevity")
+    if vehicle.tune["timing_adjustment"] > 3:
+        warnings.append("Aggressive timing increases knock risk")
+    if vehicle.tune["afr_target"] < 12.0:
+        warnings.append("Very rich AFR target may foul spark plugs")
+    if vehicle.tune["rev_limit"] > 7500:
+        warnings.append("Extended rev limit increases valve train stress")
+    
+    return jsonify({"status": "success", "tune": vehicle.tune, "warnings": warnings})
 
 @app.route('/api/tune/custom', methods=['POST'])
 def set_custom_tune():
     data = request.json
+    
+    bounds = {
+        "fuel_map_adjustment": (-20, 20),
+        "timing_adjustment": (-10, 10),
+        "boost_target": (0, 30),
+        "afr_target": (10.0, 16.0),
+        "rev_limit": (5000, 8000),
+    }
+    
+    for key, (low, high) in bounds.items():
+        if key in data and not (low <= data[key] <= high):
+            return jsonify({"status": "error", "message": f"{key} must be between {low} and {high}"}), 400
+    
     vehicle.tune.update(data)
     return jsonify({"status": "success", "tune": vehicle.tune})
 
