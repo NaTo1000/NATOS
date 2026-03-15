@@ -227,7 +227,10 @@ class ChatAssistant:
 
     def __init__(self, simulator):
         self.simulator = simulator
-        self.max_history_length = int(os.getenv('NATOS_CHAT_MAX_HISTORY', '200'))
+        try:
+            self.max_history_length = int(os.getenv('NATOS_CHAT_MAX_HISTORY', '200'))
+        except ValueError:
+            self.max_history_length = 200
         base_dir = os.path.dirname(os.path.abspath(__file__))
         memory_dir = os.path.join(base_dir, 'data')
         os.makedirs(memory_dir, exist_ok=True)

@@ -37,3 +37,6 @@ build/
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Local chat memory
+data/chat_memory.json

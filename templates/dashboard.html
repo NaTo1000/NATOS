@@ -904,7 +904,7 @@
             try {
                 const response = await fetch('/api/chat/history');
                 if (!response.ok) {
-                    throw new Error('Unable to load chat history');
+                    throw new Error(`Unable to load chat history (${response.status})`);
                 }
                 const data = await response.json();
                 messages.innerHTML = '';
@@ -930,7 +930,7 @@
                     body: JSON.stringify({ message })
                 });
                 if (!response.ok) {
-                    throw new Error('Unable to send message');
+                    throw new Error(`Unable to send message (${response.status})`);
                 }
                 const data = await response.json();
                 appendChatMessage('assistant', data.response);
@@ -979,7 +979,7 @@
 
         function toggleVoiceControl() {
             if (!recognition) {
-                alert('Voice recognition is not available in this browser.');
+                alert('Voice recognition is not supported in this browser. Please use text input or try Chrome/Edge.');
                 return;
             }
 
