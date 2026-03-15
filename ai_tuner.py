@@ -48,8 +48,66 @@ class AITuningAgent:
         # In production, this would make actual web searches
         # For now, we'll return realistic simulated data
         
+        displacement = engine_specs.get('displacement', 2.0)
+        cylinders = engine_specs.get('cylinders', 4)
+        
+        # LS3 6.2L V8 specific research
+        if displacement >= 6.0 and cylinders == 8:
+            return {
+                "engine_type": "LS3 6.2L V8 (Twin-Turbo Build)",
+                "safe_boost_limit": 22,  # PSI
+                "max_boost_modified": 30,  # PSI with forged internals
+                "afr_recommendations": {
+                    "idle": 14.7,
+                    "cruise": 14.9,
+                    "part_throttle": 13.2,
+                    "wide_open_throttle": 11.5,
+                    "max_boost": 11.0,
+                    "nitrous_active": 10.8,
+                },
+                "timing_guidelines": {
+                    "base_timing": 22,  # degrees BTDC (LS3 likes timing)
+                    "boost_retard": -1.0,  # degrees per PSI over 8
+                    "knock_retard": -3,  # degrees on knock detection
+                    "nitrous_retard": -4,  # degrees when NOS active
+                },
+                "common_issues": [
+                    "Stock LS3 rods safe to ~700hp / 18 PSI",
+                    "Requires forged internals above 800hp",
+                    "Head gaskets critical above 20 PSI",
+                    "Stock oil pump limits at high RPM boost",
+                    "Fuel system needs 1000cc+ injectors for big boost",
+                    "Nitrous + boost combination requires conservative timing",
+                ],
+                "recommended_mods": [
+                    "Forged pistons & H-beam rods (safe to 1200hp)",
+                    "Twin 67mm turbo kit (efficient to 28+ PSI)",
+                    "1000cc injectors + dual fuel pump setup",
+                    "Race head gaskets (MLS multi-layer steel)",
+                    "Upgraded oil pump & pan for sustained boost",
+                    "Standalone ECU for full boost/nitrous control",
+                ],
+                "nitrous_recommendations": {
+                    "safe_shot_wet": 200,  # HP with wet kit
+                    "safe_shot_dry": 150,  # HP with dry kit
+                    "required_fuel_pressure": 58,  # PSI
+                    "timing_retard_per_50hp": -2,  # degrees
+                    "min_octane": 93,
+                },
+                "overboost_settings": {
+                    "safe_adder": 8,  # PSI above base
+                    "max_duration": 12,  # seconds
+                    "cooldown": 30,  # seconds
+                },
+                "transbrake_settings": {
+                    "optimal_launch_rpm": 5500,
+                    "boost_build_target": 18,  # PSI on the line
+                    "converter_stall": 5000,  # RPM
+                },
+            }
+        
         return {
-            "engine_type": "2.0L Turbocharged Inline-4",
+            "engine_type": f"{displacement}L Turbocharged Inline-{cylinders}",
             "safe_boost_limit": 20,  # PSI
             "max_boost_modified": 25,  # PSI with upgraded internals
             "afr_recommendations": {
@@ -153,15 +211,26 @@ class AITuningAgent:
         
         # Base tune on driving pattern
         style = driving_pattern.get("driving_style", "moderate")
+        displacement = engine_specs.get("displacement", 2.0)
+        is_ls3 = displacement >= 6.0
         
-        # Start with conservative values
-        tune = {
-            "fuel_map_adjustment": 0,
-            "timing_adjustment": 0,
-            "boost_target": 12,
-            "afr_target": 14.7,
-            "rev_limit": 7000,
-        }
+        # Start with conservative values based on engine
+        if is_ls3:
+            tune = {
+                "fuel_map_adjustment": 15,
+                "timing_adjustment": 4,
+                "boost_target": 20,
+                "afr_target": 11.8,
+                "rev_limit": 7000,
+            }
+        else:
+            tune = {
+                "fuel_map_adjustment": 0,
+                "timing_adjustment": 0,
+                "boost_target": 12,
+                "afr_target": 14.7,
+                "rev_limit": 7000,
+            }
         
         # Adjust for driving style
         if style == "economy":
@@ -273,6 +342,20 @@ class AITuningAgent:
         if telemetry.get("oil_pressure", 50) < 10 and telemetry.get("rpm", 0) > 2000:
             adjustments["rev_limit"] = 3000  # Emergency limp mode
             reasons.append("CRITICAL: Low oil pressure - limiting RPM")
+        
+        # Check nitrous conditions
+        if telemetry.get("nitrous_active", False):
+            if telemetry.get("egt", 0) > 1400:
+                reasons.append("WARNING: High EGT with nitrous - monitor closely")
+            if telemetry.get("afr", 14.7) > 12.0:
+                adjustments["fuel_map_adjustment"] = current_tune.get("fuel_map_adjustment", 0) + 10
+                reasons.append("Lean with nitrous active - adding fuel for safety")
+        
+        # Check overboost conditions
+        if telemetry.get("overboost_active", False):
+            total_boost = telemetry.get("boost", 0)
+            if total_boost > 28:
+                reasons.append(f"WARNING: Boost at {total_boost:.1f} PSI during overboost - monitor knock")
         
         return {
             "adjustments_needed": len(adjustments) > 0,
