@@ -12,11 +12,33 @@ import threading
 import time
 import random
 import json
+import os
+import sys
 from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# --- Safe Mode Detection ---
+def _detect_safe_mode():
+    """Determine if safe mode is enabled via CLI flag, env var, or config file."""
+    if '--safe-mode' in sys.argv:
+        return True
+    if os.environ.get('SAFE_MODE', '').lower() in ('true', '1', 'yes'):
+        return True
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'natos_config.json')
+    if os.path.isfile(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                cfg = json.load(f)
+            if cfg.get('safeMode') is True:
+                return True
+        except (json.JSONDecodeError, OSError):
+            pass
+    return False
+
+SAFE_MODE = _detect_safe_mode()
 
 class VehicleSimulator:
     """Simulates realistic vehicle telemetry data"""
@@ -239,7 +261,7 @@ def telemetry_thread():
 
 @app.route('/')
 def index():
-    return render_template('dashboard.html')
+    return render_template('dashboard.html', safe_mode=SAFE_MODE)
 
 @app.route('/api/engine/start', methods=['POST'])
 def start_engine():
@@ -255,6 +277,10 @@ def stop_engine():
 def set_tune_mode():
     data = request.json
     mode = data.get('mode', 'stock')
+    
+    # In safe mode, block aggressive tuning modes
+    if SAFE_MODE and mode in ('modified',):
+        return jsonify({"status": "error", "message": "Modified mode is disabled in safe mode"}), 403
     
     # Apply tuning presets
     if mode == 'stock':
@@ -298,6 +324,8 @@ def set_tune_mode():
 
 @app.route('/api/tune/custom', methods=['POST'])
 def set_custom_tune():
+    if SAFE_MODE:
+        return jsonify({"status": "error", "message": "Custom tuning is disabled in safe mode"}), 403
     data = request.json
     vehicle.tune.update(data)
     return jsonify({"status": "success", "tune": vehicle.tune})
@@ -308,7 +336,8 @@ def get_status():
         "engine_on": vehicle.engine_on,
         "telemetry": vehicle.telemetry,
         "tune": vehicle.tune,
-        "engine_config": vehicle.engine_config
+        "engine_config": vehicle.engine_config,
+        "safe_mode": SAFE_MODE
     })
 
 @socketio.on('connect')
@@ -329,6 +358,8 @@ if __name__ == '__main__':
     print("🏎️  NATOS - Autonomous Tuning & Optimization System")
     print("=" * 60)
     print("⚠️  WARNING: FOR EDUCATIONAL/SIMULATION PURPOSES ONLY")
+    if SAFE_MODE:
+        print("🛡️  SAFE MODE ENABLED - Restricted tuning options")
     print("=" * 60)
     print("\n🌐 Starting web server on http://localhost:5000")
     print("\n📊 Dashboard will open automatically...\n")
