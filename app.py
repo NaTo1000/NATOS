@@ -35,7 +35,7 @@ LS_ENGINE_PROFILES = {
         "stroke_mm": 92.0,
         "final_drive": 3.42,
         "tire_diameter_in": 26.0,
-        "gear_ratios": [0, 2.66, 1.78, 1.30, 1.0, 0.74, 0.50],
+        "gear_ratios": [0, 2.66, 1.78, 1.30, 1.0, 0.74, 0.50],  # index 0=neutral, 1-6=gears
     },
     "ls2": {
         "name": "LS2 (6.0L V8)",
@@ -582,7 +582,7 @@ def get_engine_profiles():
 @app.route('/api/meth/toggle', methods=['POST'])
 def toggle_meth_injection():
     """Enable or disable methanol/water injection"""
-    data = request.json or {}
+    data = request.get_json(force=True, silent=True) or {}
     vehicle.meth_injection["enabled"] = data.get("enabled", not vehicle.meth_injection["enabled"])
     if not vehicle.meth_injection["enabled"]:
         vehicle.meth_injection["active"] = False
@@ -609,7 +609,7 @@ def refill_meth_tank():
 @app.route('/api/nitrous/toggle', methods=['POST'])
 def toggle_nitrous():
     """Enable or disable nitrous fogging system"""
-    data = request.json or {}
+    data = request.get_json(force=True, silent=True) or {}
     vehicle.nitrous["enabled"] = data.get("enabled", not vehicle.nitrous["enabled"])
     if not vehicle.nitrous["enabled"]:
         vehicle.nitrous["active"] = False
@@ -682,10 +682,21 @@ def set_tune_mode():
 @app.route('/api/tune/custom', methods=['POST'])
 def set_custom_tune():
     data = request.json
-    allowed_keys = ["fuel_map_adjustment", "timing_adjustment", "boost_target", "afr_target", "rev_limit", "mode"]
-    for key in allowed_keys:
+    redline = vehicle.engine_config.get("redline", 6000)
+    max_boost = vehicle.engine_config.get("max_boost", 12)
+    # Validate and clamp values to safe ranges
+    bounds = {
+        "fuel_map_adjustment": (-20, 25),
+        "timing_adjustment": (-10, 10),
+        "boost_target": (0, max_boost * 1.5),
+        "afr_target": (10.0, 16.0),
+        "rev_limit": (3000, redline + 1000),
+    }
+    for key, (lo, hi) in bounds.items():
         if key in data:
-            vehicle.tune[key] = data[key]
+            vehicle.tune[key] = max(lo, min(hi, float(data[key])))
+    if "mode" in data and isinstance(data["mode"], str):
+        vehicle.tune["mode"] = data["mode"][:20]
     return jsonify({"status": "success", "tune": vehicle.tune})
 
 @app.route('/api/status', methods=['GET'])

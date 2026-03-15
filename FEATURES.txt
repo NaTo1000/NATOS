@@ -10,7 +10,14 @@ Engine Parameters:
   ✅ RPM (Revolutions Per Minute)
   ✅ Vehicle Speed (MPH)
   ✅ Throttle Position (%)
-  ✅ Current Gear Selection
+  ✅ Current Gear Selection (6-speed)
+
+LS-Series Engine Profiles:
+  ✅ LS1 5.7L V8 (350hp, 365 lb-ft, 6000 RPM redline)
+  ✅ LS2 6.0L V8 (400hp, 400 lb-ft, 6500 RPM redline)
+  ✅ LS3 6.2L V8 (430hp, 424 lb-ft, 6600 RPM redline)
+  ✅ Real drivetrain: gear ratios, final drive, tire diameter
+  ✅ Instant engine profile switching via dashboard
 
 Boost & Air System:
   ✅ Boost Pressure (PSI)
@@ -26,7 +33,27 @@ Temperature Monitoring:
 
 Pressure Systems:
   ✅ Oil Pressure
-  ✅ Fuel Pressure
+  ✅ Fuel Pressure (58 PSI LS-series)
+
+Wheel Speed Sensors:
+  ✅ Front Left Wheel Speed (MPH)
+  ✅ Front Right Wheel Speed (MPH)
+  ✅ Rear Left Wheel Speed (MPH)
+  ✅ Rear Right Wheel Speed (MPH)
+  ✅ Wheel Slip Percentage (%)
+  ✅ Traction Control Active indicator
+  ✅ Engine RPM → Drivetrain → Wheel Speed correlation
+
+Methanol/Water Injection Telemetry:
+  ✅ Meth Flow Rate (cc/min)
+  ✅ Meth Pressure (PSI)
+  ✅ Meth Tank Level (%)
+
+Nitrous Fogging Telemetry:
+  ✅ Nitrous Flow Rate (cc/min)
+  ✅ Nitrous Bottle Pressure (PSI)
+  ✅ Nitrous Bottle Temperature (°F)
+  ✅ Nitrous Bottle Level (%)
 
 Ignition & Fuel:
   ✅ Ignition Timing (degrees BTDC)
@@ -118,6 +145,23 @@ Automatic Protection:
      - Configurable boost limits
      - Automatic limiting
      - Progressive warnings
+  
+  ✅ Wheel Slip / Traction Control
+     - Max slip threshold monitoring (15%)
+     - Boost reduction on excessive wheel spin
+     - Traction control active warning
+  
+  ✅ Methanol/Water Injection Safety
+     - Low tank warning (<10%)
+     - Empty tank critical alert
+     - Boost/timing reduction when tank empty
+     - Injection pressure monitoring
+  
+  ✅ Nitrous Fogging Safety
+     - Lean AFR detection with nitrous active
+     - Critical alert if AFR >13.0 under spray
+     - Bottle level monitoring
+     - RPM and throttle activation gates
 
 Warning System:
   ✅ Level 1: Informational (green)
@@ -186,13 +230,16 @@ Design:
 
 Control Panel:
   ✅ Engine start/stop buttons
+  ✅ LS Engine profile selector (LS1/LS2/LS3)
   ✅ Tuning mode selector
+  ✅ Methanol/Water injection controls
+  ✅ Nitrous fogging controls
   ✅ AI agent controls
   ✅ Status indicators
   ✅ Confirmation dialogs for dangerous modes
 
 Telemetry Display:
-  ✅ 16 individual parameter cards
+  ✅ 25+ individual parameter cards
   ✅ Large readable values
   ✅ Color-coded states
   ✅ Warning animations
@@ -217,6 +264,7 @@ Historical Charts:
   ✅ Temperature monitoring (3-line)
   ✅ AFR & Lambda tracking
   ✅ Power parameters (throttle, timing)
+  ✅ Wheel Speed & Traction (4 wheels + slip)
   ✅ 50-point rolling window
   ✅ Smooth updates
   ✅ Legend & labels
@@ -231,8 +279,8 @@ Engine Physics:
   ✅ Load calculation
   ✅ Power output estimation
 
-Turbocharger:
-  ✅ Spool dynamics (RPM dependent)
+Turbocharger / Supercharger:
+  ✅ Supercharger boost (linear with RPM, instant response)
   ✅ Boost pressure build-up
   ✅ Boost decay off-throttle
   ✅ Compressor heating (IAT increase)
@@ -259,10 +307,44 @@ Ignition System:
   ✅ Load-based adjustments
 
 Transmission:
-  ✅ Automatic gear shifting
-  ✅ Gear ratios
-  ✅ Speed calculation
+  ✅ Automatic gear shifting (6-speed)
+  ✅ LS-specific gear ratios per engine profile
+  ✅ Final drive ratio modeling
+  ✅ Tire diameter → wheel speed calculation
   ✅ Shift point logic
+
+Methanol/Water Injection System:
+  ✅ Boost-activated injection (configurable PSI threshold)
+  ✅ Progressive flow rate (proportional to boost)
+  ✅ IAT reduction simulation (up to 40°F)
+  ✅ Effective octane increase (+5 points)
+  ✅ Knock probability reduction (70%)
+  ✅ Timing advance allowance (+2° with meth active)
+  ✅ Tank level tracking and consumption
+  ✅ Injection pressure monitoring (80-120 PSI)
+  ✅ Configurable mix ratio (methanol/water %)
+  ✅ Tank refill capability
+
+Nitrous Fogging System:
+  ✅ RPM and throttle activation gates
+  ✅ Wet/dry shot mode selection
+  ✅ Configurable shot size (HP equivalent)
+  ✅ Bottle pressure and temperature modeling
+  ✅ Bottle consumption tracking
+  ✅ Fuel enrichment with wet shots
+  ✅ Timing retardation under spray (-4°)
+  ✅ EGT increase with nitrous active
+  ✅ Charge cooling effect on IAT
+  ✅ RPM acceleration boost
+  ✅ Bottle refill capability
+
+Wheel Speed & Traction:
+  ✅ 4-wheel independent speed sensors
+  ✅ Engine RPM → gear ratio → final drive → tire → MPH
+  ✅ Rear wheel spin under power
+  ✅ Slip percentage calculation (rear vs front)
+  ✅ Traction control activation at threshold
+  ✅ Nitrous contribution to wheel spin
 
 Realistic Noise:
   ✅ Sensor jitter simulation
@@ -279,6 +361,14 @@ REST Endpoints:
   ✅ POST /api/tune/mode
   ✅ POST /api/tune/custom
   ✅ GET  /api/status
+  ✅ POST /api/engine/profile (switch LS1/LS2/LS3)
+  ✅ GET  /api/engine/profiles (list available profiles)
+  ✅ POST /api/meth/toggle (enable/disable meth injection)
+  ✅ POST /api/meth/config (configure meth parameters)
+  ✅ POST /api/meth/refill (refill meth tank)
+  ✅ POST /api/nitrous/toggle (enable/disable nitrous)
+  ✅ POST /api/nitrous/config (configure nitrous parameters)
+  ✅ POST /api/nitrous/refill (refill nitrous bottle)
 
 WebSocket Events:
   ✅ connection_response (connect)
@@ -404,7 +494,7 @@ Performance:
   ✅ <5% CPU utilization
   ✅ 10 Hz update rate
   ✅ <50ms latency
-  ✅ 16 concurrent parameters
+  ✅ 25+ concurrent parameters
 
 Code Metrics:
   ✅ ~100KB total code
@@ -420,7 +510,7 @@ Architecture:
   ✅ Scalable design
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ TOTAL FEATURES: 150+                                                          │
+│ TOTAL FEATURES: 200+                                                          │
 └──────────────────────────────────────────────────────────────────────────────┘
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
