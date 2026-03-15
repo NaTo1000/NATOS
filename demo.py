@@ -26,23 +26,29 @@ def simulate_typing(text, delay=0.02):
 
 def demo_engine_research():
     """Demonstrate engine research capabilities"""
-    print_header("🔍 DEMO: Engine Research")
+    print_header("🔍 DEMO: VW Golf R EA113 Engine Research")
     
     print("Engine Specifications:")
-    print("  • Displacement: 2.0L")
-    print("  • Cylinders: 4")
-    print("  • Aspiration: Turbocharged")
-    print("  • Stock Boost: 12 PSI")
+    print("  • Vehicle: VW Golf R")
+    print("  • Engine Code: EA113")
+    print("  • Displacement: 2.0L (1984cc)")
+    print("  • Cylinders: 4 (inline)")
+    print("  • Aspiration: Turbocharged (K04-064)")
+    print("  • Stock Power: 256 HP / 243 lb-ft")
+    print("  • Stock Boost: ~14 PSI")
     
-    print_section("Researching engine specifications and limitations...")
+    print_section("Researching EA113 specifications and limitations...")
     time.sleep(1)
     
     agent = AITuningAgent()
     research = agent.research_engine({
+        "vehicle": "VW Golf R",
+        "engine_code": "EA113",
         "displacement": 2.0,
         "cylinders": 4,
         "aspiration": "turbocharged",
-        "max_boost": 15.0
+        "turbo": "K04-064",
+        "max_boost": 17.4
     })
     
     print("✅ Research Complete!\n")
@@ -117,17 +123,17 @@ def demo_driving_analysis():
 
 def demo_tune_generation():
     """Demonstrate AI tune generation"""
-    print_header("⚙️ DEMO: AI Tune Generation")
+    print_header("⚙️ DEMO: AI Tune Generation (VW Golf R EA113)")
     
     print("Vehicle Configuration:")
-    print("  • Engine: 2.0L Turbocharged I4")
+    print("  • Engine: VW Golf R EA113 2.0T K04")
     print("  • Modifications:")
-    print("    - Upgraded intercooler")
-    print("    - High-flow fuel pump")
-    print("    - Cold air intake")
+    print("    - Front-mount intercooler")
+    print("    - High-pressure fuel pump upgrade")
+    print("    - Upgraded diverter valve")
     print("  • Safety Priority: HIGH")
     
-    print_section("Generating optimized tune...")
+    print_section("Generating optimized EA113 tune...")
     time.sleep(1.5)
     
     agent = AITuningAgent()
@@ -147,9 +153,10 @@ def demo_tune_generation():
     }
     
     tune = agent.generate_tune(
-        {"displacement": 2.0, "cylinders": 4, "aspiration": "turbocharged", "max_boost": 15.0},
+        {"vehicle": "VW Golf R", "engine_code": "EA113", "displacement": 2.0,
+         "cylinders": 4, "aspiration": "turbocharged", "turbo": "K04-064", "max_boost": 17.4},
         pattern,
-        ["Upgraded intercooler", "High-flow fuel pump", "Cold air intake"],
+        ["Front-mount intercooler", "High-pressure fuel pump", "Upgraded diverter valve"],
         safety_priority="high"
     )
     
@@ -348,11 +355,11 @@ def demo_safety_systems():
 def main():
     """Main demo menu"""
     
-    print_header("🏎️ NATOS - AI ECU Tuning System Demo")
+    print_header("🏎️ NATOS - VW Golf R EA113 Tuning System Demo")
     
     simulate_typing("Welcome to the NATOS Interactive Demo!", 0.03)
-    print("\nThis demo showcases the AI tuning capabilities without")
-    print("requiring the full web interface.\n")
+    print("\nThis demo showcases the AI tuning capabilities for the")
+    print("VW Golf R EA113 2.0T — from ECO to Shooting Flames.\n")
     
     time.sleep(1)
     

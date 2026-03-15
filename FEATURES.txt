@@ -1,5 +1,5 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                  🏎️ NATOS - COMPLETE FEATURE LIST                          ║
+║                  🏎️ NATOS - VW Golf R EA113 FEATURE LIST                   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -46,38 +46,58 @@ Update Rate:
 └──────────────────────────────────────────────────────────────────────────────┘
 
 STOCK MODE:
-  ✅ Factory-safe parameters
-  ✅ Boost: 12 PSI
+  ✅ Factory EA113 parameters
+  ✅ Boost: 14 PSI (K04 stock)
   ✅ AFR: 14.7 (stoichiometric)
   ✅ Timing: 0° adjustment
-  ✅ Rev Limit: 7000 RPM
+  ✅ Rev Limit: 6800 RPM
   ✅ Optimal for daily driving
 
-ECONOMY MODE:
+ECO MODE:
   ✅ Fuel efficiency optimized
-  ✅ Boost: 10 PSI (reduced)
+  ✅ Boost: 8 PSI (reduced)
   ✅ AFR: 15.2 (lean for efficiency)
   ✅ Timing: +2° (efficiency)
-  ✅ Rev Limit: 6500 RPM (lower)
+  ✅ Rev Limit: 5500 RPM (lower)
   ✅ Fuel map: -5% adjustment
 
-PERFORMANCE MODE:
-  ✅ Aggressive tuning
-  ✅ Boost: 18 PSI (increased)
+SPORT MODE:
+  ✅ Sharper throttle response
+  ✅ Boost: 17 PSI (mild increase)
+  ✅ AFR: 13.5 (slightly rich)
+  ✅ Timing: +2° (advanced)
+  ✅ Rev Limit: 7000 RPM
+  ✅ Fuel map: +5% adjustment
+
+PERFORMANCE MODE: ⚠️
+  ✅ Stage 1+ tuning
+  ✅ Boost: 20 PSI (increased)
   ✅ AFR: 12.5 (rich for power)
   ✅ Timing: +3° (advanced)
-  ✅ Rev Limit: 7500 RPM
+  ✅ Rev Limit: 7200 RPM
   ✅ Fuel map: +10% adjustment
-  ⚠️ Requires premium fuel
+  ⚠️ Requires premium 91+ AKI fuel
 
-MODIFIED MODE:
-  ✅ Maximum performance
-  ✅ Boost: 22 PSI (extreme)
+RACE MODE: ⚠️⚠️
+  ✅ Stage 2 tuning
+  ✅ Boost: 23 PSI (aggressive)
   ✅ AFR: 11.8 (very rich)
   ✅ Timing: +5° (aggressive)
-  ✅ Rev Limit: 7800 RPM
+  ✅ Rev Limit: 7500 RPM
   ✅ Fuel map: +15% adjustment
-  ⚠️⚠️ Requires upgraded internals
+  ⚠️⚠️ Requires upgraded internals & supporting mods
+
+SHOOTING FLAMES MODE: ⚠️⚠️⚠️
+  ✅ Anti-lag system enabled
+  ✅ Overrun fuel injection (pops & bangs)
+  ✅ Boost: 24 PSI (extreme)
+  ✅ AFR: 11.5 (rich) / 10.5 on overrun
+  ✅ Timing: +5° / retarded -10° on decel (anti-lag)
+  ✅ Rev Limit: 7800 RPM
+  ✅ Fuel map: +18% adjustment
+  ✅ Turbo stays spooled during deceleration
+  ✅ Extreme exhaust temperatures on overrun
+  ⚠️⚠️⚠️ Requires upgraded exhaust, destroys catalytic converter
 
 Custom Tune API:
   ✅ Adjustable fuel map (-20% to +20%)

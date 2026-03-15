@@ -25,13 +25,21 @@ class VehicleSimulator:
         self.running = False
         self.engine_on = False
         
-        # Engine specifications
+        # Engine specifications - VW Golf R EA113 2.0T
         self.engine_config = {
-            "displacement": 2.0,  # Liters
+            "vehicle": "VW Golf R",
+            "engine_code": "EA113",
+            "displacement": 2.0,  # Liters (1984cc)
             "cylinders": 4,
+            "layout": "inline",
             "aspiration": "turbocharged",
-            "max_boost": 15.0,  # PSI
-            "redline": 7000,  # RPM
+            "turbo": "K04-064",
+            "stock_hp": 256,  # HP
+            "stock_torque": 243,  # lb-ft
+            "max_boost": 17.4,  # PSI (stock K04)
+            "redline": 6800,  # RPM
+            "transmission": "6-speed manual",
+            "fuel": "premium 91+ AKI",
         }
         
         # Current telemetry
@@ -61,9 +69,11 @@ class VehicleSimulator:
             "mode": "stock",
             "fuel_map_adjustment": 0,  # % change
             "timing_adjustment": 0,  # degrees
-            "boost_target": 0,  # PSI (0 = stock)
+            "boost_target": 14,  # PSI (EA113 stock ~14 PSI cruise)
             "afr_target": 14.7,
-            "rev_limit": 7000,
+            "rev_limit": 6800,
+            "overrun_fuel_cut": True,  # Normal: cut fuel on decel
+            "anti_lag": False,
         }
         
         # Safety limits
@@ -80,12 +90,15 @@ class VehicleSimulator:
         self.throttle_input = 0
         self.brake_input = 0
         self.target_gear = 1
+        self.decelerating = False  # Track decel for flames mode
+        self.prev_throttle = 0  # Previous cycle throttle for decel detection
         
     def start(self):
         """Start the engine"""
         self.engine_on = True
-        self.telemetry["rpm"] = 800 + random.randint(-50, 50)
+        self.telemetry["rpm"] = 850 + random.randint(-50, 50)
         self.telemetry["oil_pressure"] = 30 + random.randint(-2, 2)
+        self.telemetry["gear"] = 1
         
     def stop(self):
         """Stop the engine"""
@@ -95,36 +108,47 @@ class VehicleSimulator:
         self.telemetry["boost"] = 0
         
     def update(self):
-        """Update telemetry based on driving conditions"""
+        """Update telemetry based on driving conditions (EA113 physics)"""
         if not self.engine_on:
             return
             
         # Simulate throttle input (random driving pattern)
         if random.random() < 0.05:  # 5% chance to change throttle
             self.throttle_input = random.uniform(0, 100)
+        
+        # Track deceleration for shooting flames / anti-lag
+        self.decelerating = (self.throttle_input < 15 and
+                             self.telemetry["rpm"] > 2500 and
+                             self.prev_throttle > 30)
+        self.prev_throttle = self.throttle_input
             
         self.telemetry["throttle_position"] = self.throttle_input
         
-        # RPM calculation
-        target_rpm = 800 + (self.throttle_input / 100) * 6000
+        # RPM calculation (EA113 idle ~850)
+        target_rpm = 850 + (self.throttle_input / 100) * 5950
         self.telemetry["rpm"] += (target_rpm - self.telemetry["rpm"]) * 0.1
-        self.telemetry["rpm"] = max(800, min(self.tune["rev_limit"], self.telemetry["rpm"]))
+        self.telemetry["rpm"] = max(850, min(self.tune["rev_limit"], self.telemetry["rpm"]))
         
-        # Speed calculation
+        # Speed calculation (Golf R 6-speed gear ratios)
         if self.telemetry["gear"] > 0:
-            gear_ratio = [0, 3.5, 2.1, 1.4, 1.0, 0.8][self.telemetry["gear"]]
+            gear_ratios = [0, 3.36, 1.95, 1.37, 1.03, 0.84, 0.68]
+            gear_idx = min(self.telemetry["gear"], len(gear_ratios) - 1)
+            gear_ratio = gear_ratios[gear_idx]
             self.telemetry["speed"] = (self.telemetry["rpm"] / gear_ratio) * 0.05
         
-        # Auto gear shifting
-        if self.telemetry["rpm"] > 6000 and self.telemetry["gear"] < 5:
+        # Auto gear shifting (6-speed)
+        if self.telemetry["rpm"] > 6200 and self.telemetry["gear"] < 6:
             self.telemetry["gear"] += 1
-        elif self.telemetry["rpm"] < 2000 and self.telemetry["gear"] > 1:
+        elif self.telemetry["rpm"] < 1800 and self.telemetry["gear"] > 1:
             self.telemetry["gear"] -= 1
             
-        # Boost calculation (turbo)
+        # Boost calculation (K04 turbo spool)
         if self.throttle_input > 30 and self.telemetry["rpm"] > 2500:
-            boost_target = (self.throttle_input / 100) * self.tune.get("boost_target", 12)
+            boost_target = (self.throttle_input / 100) * self.tune.get("boost_target", 14)
             self.telemetry["boost"] += (boost_target - self.telemetry["boost"]) * 0.05
+        elif self.tune.get("anti_lag") and self.decelerating:
+            # Anti-lag keeps turbo spooled during decel
+            self.telemetry["boost"] *= 0.97  # Slower decay with anti-lag
         else:
             self.telemetry["boost"] *= 0.9  # Boost decay
             
@@ -133,7 +157,11 @@ class VehicleSimulator:
         
         # AFR calculation (richer under load)
         base_afr = self.tune["afr_target"]
-        if self.throttle_input > 70 and self.telemetry["boost"] > 5:
+        if (not self.tune.get("overrun_fuel_cut", True) and
+                self.decelerating and self.telemetry["rpm"] > 3000):
+            # Shooting flames: dump fuel on overrun for pops & bangs
+            target_afr = 10.5  # Very rich on overrun
+        elif self.throttle_input > 70 and self.telemetry["boost"] > 5:
             target_afr = 11.5  # Rich for power/safety
         elif self.throttle_input < 20:
             target_afr = 15.5  # Lean for economy
@@ -144,29 +172,33 @@ class VehicleSimulator:
         self.telemetry["lambda"] = self.telemetry["afr"] / 14.7
         
         # Temperature simulations
-        load_factor = (self.throttle_input / 100) * (self.telemetry["rpm"] / 7000)
+        load_factor = (self.throttle_input / 100) * (self.telemetry["rpm"] / 6800)
         
         # Engine coolant temp
-        target_ect = 180 + (load_factor * 30)
+        target_ect = 185 + (load_factor * 30)
         self.telemetry["ect"] += (target_ect - self.telemetry["ect"]) * 0.01
         
         # Oil temp
-        target_oil = 180 + (load_factor * 50)
+        target_oil = 200 + (load_factor * 50)
         self.telemetry["oil_temp"] += (target_oil - self.telemetry["oil_temp"]) * 0.008
         
-        # Intake air temp
-        target_iat = 75 + (self.telemetry["boost"] * 8)  # Heat from compression
+        # Intake air temp (K04 compressor heat)
+        target_iat = 75 + (self.telemetry["boost"] * 8)
         self.telemetry["iat"] += (target_iat - self.telemetry["iat"]) * 0.05
         
         # Exhaust gas temp
-        target_egt = 800 + (load_factor * 600) + (self.telemetry["boost"] * 20)
+        base_egt = 800 + (load_factor * 600) + (self.telemetry["boost"] * 20)
+        if self.tune.get("anti_lag") and self.decelerating:
+            # Anti-lag / shooting flames dumps unburnt fuel → extreme EGT
+            base_egt += 400
+        target_egt = base_egt
         self.telemetry["egt"] += (target_egt - self.telemetry["egt"]) * 0.05
         
         # Oil pressure
         rpm_factor = self.telemetry["rpm"] / 1000
         self.telemetry["oil_pressure"] = 10 + (rpm_factor * 10)
         
-        # Knock detection (simulated - more likely with aggressive timing/lean AFR)
+        # Knock detection (more likely with aggressive timing/lean AFR)
         knock_probability = 0
         if self.telemetry["afr"] > 13.5 and self.telemetry["boost"] > 10:
             knock_probability = 0.02
@@ -180,11 +212,15 @@ class VehicleSimulator:
         # Ignition timing
         base_timing = 15 + self.tune["timing_adjustment"]
         if self.telemetry["boost"] > 8:
-            base_timing -= (self.telemetry["boost"] - 8) * 0.5  # Retard under boost
+            base_timing -= (self.telemetry["boost"] - 8) * 0.5
+        if self.tune.get("anti_lag") and self.decelerating:
+            base_timing -= 10  # Heavily retard timing for anti-lag combustion
         self.telemetry["ignition_timing"] = base_timing
         
         # Injector duty cycle
         duty = 20 + (load_factor * 60) + (self.tune["fuel_map_adjustment"])
+        if not self.tune.get("overrun_fuel_cut", True) and self.decelerating:
+            duty += 20  # Extra fuel on overrun for flames
         self.telemetry["injector_duty"] = min(95, max(5, duty))
         
         # Add realistic noise
@@ -256,42 +292,72 @@ def set_tune_mode():
     data = request.json
     mode = data.get('mode', 'stock')
     
-    # Apply tuning presets
-    if mode == 'stock':
+    # VW Golf R EA113 tuning presets — ECO to Shooting Flames
+    if mode == 'eco':
+        vehicle.tune.update({
+            "mode": "eco",
+            "fuel_map_adjustment": -5,
+            "timing_adjustment": 2,
+            "boost_target": 8,
+            "afr_target": 15.2,
+            "rev_limit": 5500,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
+        })
+    elif mode == 'stock':
         vehicle.tune.update({
             "mode": "stock",
             "fuel_map_adjustment": 0,
             "timing_adjustment": 0,
-            "boost_target": 12,
+            "boost_target": 14,
             "afr_target": 14.7,
-            "rev_limit": 7000,
+            "rev_limit": 6800,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
         })
-    elif mode == 'economy':
+    elif mode == 'sport':
         vehicle.tune.update({
-            "mode": "economy",
-            "fuel_map_adjustment": -5,
+            "mode": "sport",
+            "fuel_map_adjustment": 5,
             "timing_adjustment": 2,
-            "boost_target": 10,
-            "afr_target": 15.2,
-            "rev_limit": 6500,
+            "boost_target": 17,
+            "afr_target": 13.5,
+            "rev_limit": 7000,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
         })
     elif mode == 'performance':
         vehicle.tune.update({
             "mode": "performance",
             "fuel_map_adjustment": 10,
             "timing_adjustment": 3,
-            "boost_target": 18,
+            "boost_target": 20,
             "afr_target": 12.5,
-            "rev_limit": 7500,
+            "rev_limit": 7200,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
         })
-    elif mode == 'modified':
+    elif mode == 'race':
         vehicle.tune.update({
-            "mode": "modified",
+            "mode": "race",
             "fuel_map_adjustment": 15,
             "timing_adjustment": 5,
-            "boost_target": 22,
+            "boost_target": 23,
             "afr_target": 11.8,
+            "rev_limit": 7500,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
+        })
+    elif mode == 'flames':
+        vehicle.tune.update({
+            "mode": "flames",
+            "fuel_map_adjustment": 18,
+            "timing_adjustment": 5,
+            "boost_target": 24,
+            "afr_target": 11.5,
             "rev_limit": 7800,
+            "overrun_fuel_cut": False,   # Fuel stays on during decel → pops & bangs
+            "anti_lag": True,            # Anti-lag keeps turbo spooled
         })
     
     return jsonify({"status": "success", "tune": vehicle.tune})
@@ -326,9 +392,10 @@ if __name__ == '__main__':
     thread.start()
     
     print("=" * 60)
-    print("🏎️  NATOS - Autonomous Tuning & Optimization System")
+    print("🏎️  NATOS - VW Golf R EA113 Tuning System")
     print("=" * 60)
     print("⚠️  WARNING: FOR EDUCATIONAL/SIMULATION PURPOSES ONLY")
+    print("   Modes: ECO → Stock → Sport → Performance → Race → Flames")
     print("=" * 60)
     print("\n🌐 Starting web server on http://localhost:5000")
     print("\n📊 Dashboard will open automatically...\n")

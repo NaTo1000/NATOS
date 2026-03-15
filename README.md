@@ -1,6 +1,6 @@
-# 🏎️ NATOS - AI-Powered ECU Tuning System
+# 🏎️ NATOS - VW Golf R EA113 AI Tuning System
 
-**N**eural **A**utonomous **T**uning & **O**ptimization **S**ystem
+**N**eural **A**utonomous **T**uning & **O**ptimization **S**ystem — VW Golf R EA113 2.0T K04
 
 ## ⚠️ CRITICAL WARNING
 
@@ -31,34 +31,51 @@
 - **Ignition System**: Timing advance, knock detection
 - **Fuel System**: Injector duty cycle, fuel trim
 
-### AI-Powered Tuning Modes
+### AI-Powered Tuning Modes (ECO → Shooting Flames)
 
-1. **Stock Mode**
-   - Factory-safe parameters
-   - Optimal reliability
-   - Standard performance
-   - Recommended for daily driving
-
-2. **Economy Mode**
+1. **ECO Mode** 🌿
    - Fuel efficiency optimization
-   - Lean AFR tuning
-   - Reduced boost
-   - Lower rev limit
+   - Low boost (8 PSI)
+   - Lean AFR (15.2:1)
+   - Reduced rev limit (5500 RPM)
    - Best for highway cruising
 
-3. **Performance Mode**
-   - Aggressive tuning
-   - Higher boost targets
-   - Rich AFR for power
-   - Advanced timing
-   - ⚠️ Requires premium fuel
+2. **Stock Mode**
+   - Factory EA113 K04 parameters
+   - Stock boost (14 PSI)
+   - Stoichiometric AFR (14.7:1)
+   - Stock rev limit (6800 RPM)
+   - Recommended for daily driving
 
-4. **Modified Mode**
-   - Maximum performance
-   - For upgraded engines
-   - High boost (20+ PSI)
-   - Very rich AFR (11.5:1)
-   - ⚠️ Requires forged internals
+3. **Sport Mode** ⚡
+   - Sharper throttle response
+   - Increased boost (17 PSI)
+   - Slightly rich AFR (13.5:1)
+   - Higher rev limit (7000 RPM)
+   - Premium fuel recommended
+
+4. **Performance Mode** 🏁
+   - Stage 1+ tuning
+   - High boost (20 PSI)
+   - Rich AFR for power (12.5:1)
+   - Advanced timing (+3°)
+   - ⚠️ Requires premium 91+ AKI fuel
+
+5. **Race Mode** 🏆
+   - Stage 2 track tuning
+   - Very high boost (23 PSI)
+   - Very rich AFR (11.8:1)
+   - Aggressive timing (+5°)
+   - ⚠️ Requires upgraded internals & supporting mods
+
+6. **Shooting Flames Mode** 🔥
+   - Anti-lag system (ALS) enabled
+   - Overrun fuel injection (pops & bangs)
+   - Extreme boost (24 PSI)
+   - Rich AFR on overrun (10.5:1)
+   - Timing retarded -10° on decel for anti-lag
+   - Turbo stays spooled during deceleration
+   - ⚠️⚠️ Destroys catalytic converter, track/off-road only
 
 ### Safety Systems
 
@@ -238,7 +255,7 @@ Response: {"status": "stopped"}
 **Set Tuning Mode**
 ```http
 POST /api/tune/mode
-Body: {"mode": "stock|economy|performance|modified"}
+Body: {"mode": "eco|stock|sport|performance|race|flames"}
 Response: {"status": "success", "tune": {...}}
 ```
 

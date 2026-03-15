@@ -46,35 +46,52 @@ class AITuningAgent:
         """
         
         # In production, this would make actual web searches
-        # For now, we'll return realistic simulated data
+        # For now, we'll return EA113-specific simulated data
         
         return {
-            "engine_type": "2.0L Turbocharged Inline-4",
-            "safe_boost_limit": 20,  # PSI
-            "max_boost_modified": 25,  # PSI with upgraded internals
+            "engine_type": "VW Golf R EA113 2.0T (K04)",
+            "engine_code": "EA113",
+            "safe_boost_limit": 20,  # PSI (stock K04 turbo)
+            "max_boost_modified": 28,  # PSI with hybrid turbo / big turbo kit
+            "stock_power": 256,  # HP
+            "stock_torque": 243,  # lb-ft
             "afr_recommendations": {
                 "idle": 14.7,
                 "cruise": 15.0,
                 "part_throttle": 14.0,
                 "wide_open_throttle": 11.8,
-                "max_boost": 11.5
+                "max_boost": 11.5,
+                "anti_lag_overrun": 10.5
             },
             "timing_guidelines": {
                 "base_timing": 15,  # degrees BTDC
                 "boost_retard": -0.5,  # degrees per PSI over 10
-                "knock_retard": -2  # degrees on knock detection
+                "knock_retard": -2,  # degrees on knock detection
+                "anti_lag_retard": -10  # degrees during anti-lag / flames
             },
             "common_issues": [
-                "Weak piston rings above 350hp",
-                "Stock turbo efficient to ~18 PSI",
-                "Fuel pump limits at 400hp",
-                "Stock intercooler heat soaks above 15 PSI"
+                "PCV system failures at high boost (>20 PSI)",
+                "Stock K04 turbo efficient to ~20 PSI",
+                "Diverter valve upgrade needed above 18 PSI",
+                "Fuel pump limits at 350hp on stock HPFP",
+                "Stock intercooler heat soaks above 17 PSI sustained",
+                "Connecting rod bolts are weak point above 400hp"
             ],
             "recommended_mods": [
-                "Upgraded intercooler (reduces IAT by 30-50°F)",
-                "High-flow fuel pump (supports 500hp)",
-                "Forged pistons (safe to 25 PSI)",
-                "Larger turbo (efficient to 25+ PSI)"
+                "Front-mount intercooler (reduces IAT by 30-50°F)",
+                "High-pressure fuel pump upgrade (supports 400hp)",
+                "Forged connecting rods (safe to 500+ hp)",
+                "Hybrid K04 turbo or GT28RS (efficient to 28+ PSI)",
+                "Upgraded diverter valve (holds boost reliably)",
+                "Downpipe with high-flow cat (reduces backpressure)"
+            ],
+            "tune_modes": [
+                "ECO - Fuel efficiency, low boost, lean cruise",
+                "Stock - Factory EA113 parameters",
+                "Sport - Sharper response, moderate boost increase",
+                "Performance - Stage 1+, ~300hp, premium fuel required",
+                "Race - Stage 2, ~350hp, requires supporting mods",
+                "Shooting Flames - Anti-lag, pops & bangs, overrun fueling"
             ]
         }
     
@@ -154,13 +171,15 @@ class AITuningAgent:
         # Base tune on driving pattern
         style = driving_pattern.get("driving_style", "moderate")
         
-        # Start with conservative values
+        # Start with conservative EA113 stock values
         tune = {
             "fuel_map_adjustment": 0,
             "timing_adjustment": 0,
-            "boost_target": 12,
+            "boost_target": 14,
             "afr_target": 14.7,
-            "rev_limit": 7000,
+            "rev_limit": 6800,
+            "overrun_fuel_cut": True,
+            "anti_lag": False,
         }
         
         # Adjust for driving style
@@ -168,17 +187,21 @@ class AITuningAgent:
             tune.update({
                 "fuel_map_adjustment": -5,
                 "timing_adjustment": 2,
-                "boost_target": 10,
+                "boost_target": 8,
                 "afr_target": 15.0,
-                "rev_limit": 6500
+                "rev_limit": 5500,
+                "overrun_fuel_cut": True,
+                "anti_lag": False,
             })
         elif style == "aggressive" or style == "performance":
             tune.update({
                 "fuel_map_adjustment": 10,
                 "timing_adjustment": 3,
-                "boost_target": 16,
+                "boost_target": 20,
                 "afr_target": 12.0,
-                "rev_limit": 7200
+                "rev_limit": 7200,
+                "overrun_fuel_cut": True,
+                "anti_lag": False,
             })
         
         # Adjust for modifications
@@ -286,12 +309,15 @@ def example_usage():
     
     agent = AITuningAgent()
     
-    # Engine specs
+    # Engine specs (VW Golf R EA113)
     engine = {
+        "vehicle": "VW Golf R",
+        "engine_code": "EA113",
         "displacement": 2.0,
         "cylinders": 4,
         "aspiration": "turbocharged",
-        "max_boost": 15.0
+        "turbo": "K04-064",
+        "max_boost": 17.4
     }
     
     # Research engine
