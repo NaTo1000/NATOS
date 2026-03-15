@@ -18,6 +18,9 @@ natos.log
 .env
 .env.local
 
+# Runtime config
+natos_config.json
+
 # OS files
 .DS_Store
 Thumbs.db

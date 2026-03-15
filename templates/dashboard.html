@@ -51,6 +51,14 @@
             animation: pulse 2s infinite;
         }
         
+        .safe-mode-banner {
+            background: #1a3d99;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -314,6 +322,12 @@
         ⚠️ CRITICAL WARNING - CHECK ALERTS BELOW ⚠️
     </div>
     
+    {% if safe_mode %}
+    <div class="safe-mode-banner" id="safeModeBanner">
+        🛡️ SAFE MODE ENABLED - Modified tuning and custom tunes are restricted
+    </div>
+    {% endif %}
+    
     <div class="container">
         <!-- Control Panel -->
         <div class="control-panel">
@@ -332,7 +346,7 @@
                 <button class="btn btn-mode active" onclick="setMode('stock')" id="mode-stock">Stock</button>
                 <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
                 <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
-                <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified" {% if safe_mode %}disabled title="Disabled in safe mode"{% endif %}>Modified ⚠️</button>
             </div>
             
             <div class="control-card">
