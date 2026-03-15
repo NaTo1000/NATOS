@@ -46,6 +46,12 @@ class BCUState(Enum):
     LIMP_MODE = "limp_mode"
 
 
+def _max_severity(a: str, b: str) -> str:
+    """Return the higher severity between two severity strings."""
+    order = ["normal", "warning", "critical"]
+    return a if order.index(a) >= order.index(b) else b
+
+
 class BoostControllerUnit:
     """
     Boost Controller Unit with preset timing and boost adjustments.
@@ -299,7 +305,7 @@ class BoostControllerUnit:
         if egt > self.safety_limits["max_egt"]:
             self.boost_target = max(self.boost_min, self.boost_target - 1.0)
             actions.append(f"High EGT {egt}°F → reducing boost")
-            severity = max(severity, "warning", key=lambda s: ["normal", "warning", "critical"].index(s))
+            severity = _max_severity(severity, "warning")
 
         # IAT protection
         iat = telemetry.get("iat", 0)
@@ -307,7 +313,7 @@ class BoostControllerUnit:
             self.timing_offset = max(self.timing_min - self.timing_base,
                                      self.timing_offset - 1.0)
             actions.append(f"High IAT {iat}°F → retard timing")
-            severity = max(severity, "warning", key=lambda s: ["normal", "warning", "critical"].index(s))
+            severity = _max_severity(severity, "warning")
 
         # Oil pressure protection
         oil = telemetry.get("oil_pressure", 50)
@@ -323,7 +329,7 @@ class BoostControllerUnit:
         if afr < self.safety_limits["min_afr_boost"] and boost > 5:
             self.boost_target = max(self.boost_min, self.boost_target - 1.0)
             actions.append(f"Dangerous AFR {afr:.1f} under boost → reducing")
-            severity = max(severity, "warning", key=lambda s: ["normal", "warning", "critical"].index(s))
+            severity = _max_severity(severity, "warning")
 
         if actions:
             self._log_adjustment("safety_interlock", {

@@ -6,7 +6,7 @@ Implements a hierarchical orchestration system inspired by WatsonX patterns:
 Hierarchy:
   Supervisor  →  oversees the entire pipeline
     ├── BoostController  →  manages BCU via the bcu_module
-    ├── TelemetryMonitor →  aggregates and analyses live sensor data
+    ├── TelemetryMonitor →  aggregates and analyzes live sensor data
     ├── AIOptimizer      →  runs on-the-fly tune adjustments
     └── SafetyGuardian   →  enforces hard safety limits
 
@@ -259,7 +259,7 @@ class AIOptimizer(OrchestratorWorker):
         self.run_count += 1
         self._tick_counter += 1
 
-        # Only optimise every OPTIMIZATION_INTERVAL ticks
+        # Only optimize every OPTIMIZATION_INTERVAL ticks
         if self._tick_counter % OPTIMIZATION_INTERVAL != 0:
             self.state = WorkerState.IDLE
             return {"action": "skip", "next_in": OPTIMIZATION_INTERVAL - (self._tick_counter % OPTIMIZATION_INTERVAL)}
@@ -268,7 +268,7 @@ class AIOptimizer(OrchestratorWorker):
         telemetry = context.get("telemetry", {})
         safety_severity = context.get("safety_severity", "normal")
 
-        recommendation = self._optimise(trends, telemetry, safety_severity)
+        recommendation = self._optimize(trends, telemetry, safety_severity)
         if recommendation:
             self.recommendations.append(recommendation)
             if len(self.recommendations) > 200:
@@ -282,10 +282,10 @@ class AIOptimizer(OrchestratorWorker):
         return recommendation or {"action": "hold"}
 
     # ── optimisation heuristics ─────────────────────────────────
-    def _optimise(self, trends: Dict, telemetry: Dict, safety: str) -> Optional[Dict[str, Any]]:
-        """Lightweight heuristic optimiser (simulates WatsonX inference)."""
+    def _optimize(self, trends: Dict, telemetry: Dict, safety: str) -> Optional[Dict[str, Any]]:
+        """Lightweight heuristic optimizer (simulates WatsonX inference)."""
 
-        # Never optimise during safety events
+        # Never optimize during safety events
         if safety == "critical":
             return {"action": "safety_hold", "reason": "Critical safety condition active"}
 
@@ -341,7 +341,7 @@ class AIOptimizer(OrchestratorWorker):
             return None
 
         return {
-            "action": "optimise",
+            "action": "optimize",
             "goal": self.goal.value,
             "adjustments": actions,
             "timestamp": datetime.now().isoformat(),

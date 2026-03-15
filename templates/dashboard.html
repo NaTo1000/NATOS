@@ -1097,7 +1097,8 @@
                 body: JSON.stringify({ increment: inc })
             });
             document.querySelectorAll('[id^="tinc-"]').forEach(b => b.classList.remove('active'));
-            document.getElementById('tinc-' + inc.toLowerCase()).classList.add('active');
+            const tEl = document.getElementById('tinc-' + inc.toLowerCase());
+            if (tEl) tEl.classList.add('active');
         }
         async function bcuBoostInc() {
             await fetch('/api/bcu/boost/increase', {
@@ -1120,7 +1121,8 @@
                 body: JSON.stringify({ increment: inc })
             });
             document.querySelectorAll('[id^="binc-"]').forEach(b => b.classList.remove('active'));
-            document.getElementById('binc-' + inc.toLowerCase()).classList.add('active');
+            const bEl = document.getElementById('binc-' + inc.toLowerCase());
+            if (bEl) bEl.classList.add('active');
         }
 
         // ── Orchestrator Control Functions ─────────────────────
@@ -1137,7 +1139,8 @@
                 body: JSON.stringify({ goal: goal })
             });
             document.querySelectorAll('[id^="goal-"]').forEach(b => b.classList.remove('active'));
-            document.getElementById('goal-' + goal).classList.add('active');
+            const gEl = document.getElementById('goal-' + goal);
+            if (gEl) gEl.classList.add('active');
         }
 
         // ── Live BCU & Orchestrator UI updates ────────────────
