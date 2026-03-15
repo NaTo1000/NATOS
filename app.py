@@ -12,11 +12,20 @@ import threading
 import time
 import random
 import json
+import math
 from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'natos-secret-key-2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+ATMOSPHERIC_PRESSURE_PSI = 14.7
+BOOST_TORQUE_GAIN = 0.6
+BASE_TORQUE_PER_LITER_NM = 140
+TORQUE_CURVE_PEAK_RPM_RATIO = 0.55
+MIN_TORQUE_CURVE_FACTOR = 0.2
+NM_RPM_TO_KW_DIVISOR = 60000
+TWO_PI = 2 * math.pi
 
 class VehicleSimulator:
     """Simulates realistic vehicle telemetry data"""
@@ -54,6 +63,8 @@ class VehicleSimulator:
             "ignition_timing": 15,  # degrees BTDC
             "injector_duty": 20,  # %
             "voltage": 14.2,
+            "torque_nm": 0,
+            "power_kw": 0,
         }
         
         # Tuning parameters
@@ -186,6 +197,21 @@ class VehicleSimulator:
         # Injector duty cycle
         duty = 20 + (load_factor * 60) + (self.tune["fuel_map_adjustment"])
         self.telemetry["injector_duty"] = min(95, max(5, duty))
+
+        # Derived torque and power (for power curve display)
+        rpm_ratio = self.telemetry["rpm"] / max(self.tune["rev_limit"], 1)
+        torque_curve = max(
+            MIN_TORQUE_CURVE_FACTOR,
+            1 - ((rpm_ratio - TORQUE_CURVE_PEAK_RPM_RATIO) / TORQUE_CURVE_PEAK_RPM_RATIO) ** 2
+        )
+        base_torque_nm = self.engine_config["displacement"] * BASE_TORQUE_PER_LITER_NM
+        boost_factor = 1 + (self.telemetry["boost"] / ATMOSPHERIC_PRESSURE_PSI) * BOOST_TORQUE_GAIN
+        throttle_factor = self.throttle_input / 100
+        self.telemetry["torque_nm"] = max(0, base_torque_nm * torque_curve * boost_factor * throttle_factor)
+        # Power(kW) = Torque(Nm) × RPM × 2π / 60000
+        self.telemetry["power_kw"] = (
+            self.telemetry["torque_nm"] * self.telemetry["rpm"] * TWO_PI
+        ) / NM_RPM_TO_KW_DIVISOR
         
         # Add realistic noise
         for key in ["rpm", "afr", "boost", "oil_pressure"]:
@@ -292,6 +318,15 @@ def set_tune_mode():
             "boost_target": 22,
             "afr_target": 11.8,
             "rev_limit": 7800,
+        })
+    elif mode == 'ls3_big_boost':
+        vehicle.tune.update({
+            "mode": "ls3_big_boost",
+            "fuel_map_adjustment": 18,
+            "timing_adjustment": 4,
+            "boost_target": 24,
+            "afr_target": 11.6,
+            "rev_limit": 7200,
         })
     
     return jsonify({"status": "success", "tune": vehicle.tune})

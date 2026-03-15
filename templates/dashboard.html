@@ -205,6 +205,20 @@
             gap: 20px;
             margin-bottom: 30px;
         }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .charts-container {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
         
         .chart-card {
             background: rgba(0, 0, 0, 0.6);
@@ -333,6 +347,7 @@
                 <button class="btn btn-mode" onclick="setMode('economy')" id="mode-economy">Economy</button>
                 <button class="btn btn-mode" onclick="setMode('performance')" id="mode-performance">Performance</button>
                 <button class="btn btn-mode" onclick="setMode('modified')" id="mode-modified">Modified ⚠️</button>
+                <button class="btn btn-mode" onclick="setMode('ls3_big_boost')" id="mode-ls3_big_boost">LS3 Big Boost ⚠️</button>
             </div>
             
             <div class="control-card">
@@ -477,6 +492,18 @@
                 <div class="telemetry-value" id="voltage">14.2</div>
                 <div class="telemetry-unit">Volts</div>
             </div>
+
+            <div class="telemetry-card" id="card-torque">
+                <div class="telemetry-label">Torque</div>
+                <div class="telemetry-value" id="torque">0</div>
+                <div class="telemetry-unit">Nm</div>
+            </div>
+
+            <div class="telemetry-card" id="card-power-kw">
+                <div class="telemetry-label">Power</div>
+                <div class="telemetry-value" id="power-kw">0.0</div>
+                <div class="telemetry-unit">kW</div>
+            </div>
         </div>
         
         <!-- Charts -->
@@ -497,7 +524,7 @@
             </div>
             
             <div class="chart-card">
-                <h3>⚡ Power Parameters</h3>
+                <h3>⚡ Power Curve (Torque and kW)</h3>
                 <canvas id="powerChart"></canvas>
             </div>
         </div>
@@ -518,8 +545,8 @@
             iat: [],
             afr: [],
             lambda: [],
-            timing: [],
-            throttle: []
+            torque: [],
+            powerKw: []
         };
         
         // Initialize charts
@@ -613,21 +640,37 @@
             data: {
                 labels: chartData.labels,
                 datasets: [{
-                    label: 'Throttle (%)',
-                    data: chartData.throttle,
+                    label: 'Torque (Nm)',
+                    data: chartData.torque,
                     borderColor: '#00ff88',
                     backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    yAxisID: 'y',
                 }, {
-                    label: 'Timing (°)',
-                    data: chartData.timing,
+                    label: 'Power (kW)',
+                    data: chartData.powerKw,
                     borderColor: '#ff6600',
                     backgroundColor: 'rgba(255, 102, 0, 0.1)',
+                    yAxisID: 'y1',
                 }]
             },
             options: {
                 responsive: true,
                 plugins: { legend: { labels: { color: '#fff' } } },
-                scales: { y: { ticks: { color: '#fff' } } }
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Torque (Nm)', color: '#00ff88' },
+                        ticks: { color: '#00ff88' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'Power (kW)', color: '#ff6600' },
+                        ticks: { color: '#ff6600' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
             }
         });
         
@@ -656,6 +699,8 @@
             document.getElementById('knock').textContent = telemetry.knock_count;
             document.getElementById('lambda').textContent = telemetry.lambda.toFixed(2);
             document.getElementById('voltage').textContent = telemetry.voltage.toFixed(1);
+            document.getElementById('torque').textContent = Math.round(telemetry.torque_nm);
+            document.getElementById('power-kw').textContent = telemetry.power_kw.toFixed(1);
             
             // Update warning states
             updateCardWarnings(telemetry);
@@ -733,8 +778,8 @@
             chartData.iat.push(telemetry.iat);
             chartData.afr.push(telemetry.afr);
             chartData.lambda.push(telemetry.lambda);
-            chartData.timing.push(telemetry.ignition_timing);
-            chartData.throttle.push(telemetry.throttle_position);
+            chartData.torque.push(telemetry.torque_nm);
+            chartData.powerKw.push(telemetry.power_kw);
             
             // Keep only last N points
             if (chartData.labels.length > maxDataPoints) {
@@ -747,8 +792,8 @@
                 chartData.iat.shift();
                 chartData.afr.shift();
                 chartData.lambda.shift();
-                chartData.timing.shift();
-                chartData.throttle.shift();
+                chartData.torque.shift();
+                chartData.powerKw.shift();
             }
             
             rpmBoostChart.update('none');
@@ -773,8 +818,14 @@
         
         async function setMode(mode) {
             // Show warning for modified mode
-            if (mode === 'modified' || mode === 'performance') {
-                if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+            if (mode === 'modified' || mode === 'performance' || mode === 'ls3_big_boost') {
+                const modeNames = {
+                    performance: 'PERFORMANCE',
+                    modified: 'MODIFIED',
+                    ls3_big_boost: 'LS3 BIG BOOST'
+                };
+                const warningMode = modeNames[mode] || mode.toUpperCase();
+                if (!confirm(`⚠️ WARNING: ${warningMode} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
                     return;
                 }
             }
