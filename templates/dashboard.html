@@ -858,7 +858,7 @@
             });
             
             // Update button states within the active tuning panel
-            const panelId = mode.startsWith('ls1_') ? 'tuning-panel-ls1' : 'tuning-panel-i4';
+            const panelId = currentProfile === 'ls1_v8' ? 'tuning-panel-ls1' : 'tuning-panel-i4';
             document.querySelectorAll(`#${panelId} .btn-mode`).forEach(btn => {
                 btn.classList.remove('active');
             });

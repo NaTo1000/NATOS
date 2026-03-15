@@ -166,9 +166,13 @@ class VehicleSimulator:
         # Speed calculation - LS1 has different gearing (6-speed T56)
         if self.telemetry["gear"] > 0:
             if is_ls1:
-                gear_ratio = [0, 2.66, 1.78, 1.30, 1.00, 0.74, 0.50][min(self.telemetry["gear"], 6)]
+                gear_ratios = [0, 2.66, 1.78, 1.30, 1.00, 0.74, 0.50]
+                gear_idx = max(0, min(self.telemetry["gear"], len(gear_ratios) - 1))
+                gear_ratio = gear_ratios[gear_idx]
             else:
-                gear_ratio = [0, 3.5, 2.1, 1.4, 1.0, 0.8][min(self.telemetry["gear"], 5)]
+                gear_ratios = [0, 3.5, 2.1, 1.4, 1.0, 0.8]
+                gear_idx = max(0, min(self.telemetry["gear"], len(gear_ratios) - 1))
+                gear_ratio = gear_ratios[gear_idx]
             self.telemetry["speed"] = (self.telemetry["rpm"] / gear_ratio) * 0.05
         
         # Auto gear shifting

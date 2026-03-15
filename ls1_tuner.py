@@ -27,7 +27,7 @@ LS1_ENGINE_CONFIG = {
     "stroke": 3.622,  # inches
     "compression_ratio": 10.25,
     "max_boost": 0.0,  # NA engine - no boost stock
-    "redline": 6000,  # RPM (stock)
+    "redline": 6000,  # RPM (stock - upgradable to 7200 with aftermarket valvetrain)
     "stock_hp": 345,  # HP @ 5600 RPM (LS1 Corvette)
     "stock_torque": 350,  # lb-ft @ 4400 RPM
     "fuel_system": "sequential_multi_port",
@@ -263,7 +263,7 @@ class LS1AdvancedTuner:
         if has_cam:
             tune["fuel_map_adjustment"] += 5
             tune["timing_adjustment"] += 3
-            tune["rev_limit"] = min(7000, tune["rev_limit"] + 500)
+            tune["rev_limit"] = min(7200, tune["rev_limit"] + 500)
             tune["afr_target"] = min(tune["afr_target"], 13.0)
 
         if has_heads:
