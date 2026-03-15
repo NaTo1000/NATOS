@@ -524,7 +524,7 @@
             </div>
             
             <div class="chart-card">
-                <h3>⚡ Power Curve (Torque & kW)</h3>
+                <h3>⚡ Power Curve (Torque and kW)</h3>
                 <canvas id="powerChart"></canvas>
             </div>
         </div>
@@ -657,8 +657,19 @@
                 responsive: true,
                 plugins: { legend: { labels: { color: '#fff' } } },
                 scales: {
-                    y: { type: 'linear', position: 'left', title: { display: true, text: 'Torque (Nm)', color: '#00ff88' }, ticks: { color: '#00ff88' } },
-                    y1: { type: 'linear', position: 'right', title: { display: true, text: 'Power (kW)', color: '#ff6600' }, ticks: { color: '#ff6600' }, grid: { drawOnChartArea: false } }
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Torque (Nm)', color: '#00ff88' },
+                        ticks: { color: '#00ff88' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'Power (kW)', color: '#ff6600' },
+                        ticks: { color: '#ff6600' },
+                        grid: { drawOnChartArea: false }
+                    }
                 }
             }
         });
@@ -808,7 +819,13 @@
         async function setMode(mode) {
             // Show warning for modified mode
             if (mode === 'modified' || mode === 'performance' || mode === 'ls3_big_boost') {
-                if (!confirm(`⚠️ WARNING: ${mode.toUpperCase()} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
+                const modeNames = {
+                    performance: 'PERFORMANCE',
+                    modified: 'MODIFIED',
+                    ls3_big_boost: 'LS3 BIG BOOST'
+                };
+                const warningMode = modeNames[mode] || mode.toUpperCase();
+                if (!confirm(`⚠️ WARNING: ${warningMode} mode increases engine stress and may cause damage!\n\nThis mode is for:\n• Modified engines with upgraded components\n• Professional dyno tuning environments\n• Track use only\n\nProceed at your own risk!`)) {
                     return;
                 }
             }
