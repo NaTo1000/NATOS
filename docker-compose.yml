@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  natos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: natos:latest
+    container_name: natos
+    restart: unless-stopped
+
+    # Credentials and configuration are read from the .env file at runtime.
+    # Create .env from .env.example and fill in real values before starting.
+    # The .env file must NOT be committed to source control.
+    env_file:
+      - .env
+
+    ports:
+      - "5000:5000"
+
+    # Optional: mount application data / logs to a named volume so they
+    # survive container restarts without being baked into the image.
+    volumes:
+      - natos_logs:/app/logs
+
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request, sys; r = urllib.request.urlopen('http://localhost:5000/api/status', timeout=5); sys.exit(0 if r.status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  natos_logs:

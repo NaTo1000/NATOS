@@ -14,9 +14,12 @@ ENV/
 *.log
 natos.log
 
-# Environment variables
+# Environment variables – never commit real secrets
 .env
 .env.local
+.env.*.local
+# Docker Compose local overrides may contain secrets
+docker-compose.override.yml
 
 # OS files
 .DS_Store
