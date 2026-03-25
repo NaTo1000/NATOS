@@ -8,6 +8,7 @@ DO NOT USE ON ACTUAL VEHICLES WITHOUT PROFESSIONAL VALIDATION
 
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
+import os
 import threading
 import time
 import random
@@ -15,7 +16,7 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'natos-secret-key-2026'
+app.config['SECRET_KEY'] = os.environ.get('NATOS_SECRET_KEY', 'natos-dev-secret-key-change-in-production')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 class VehicleSimulator:
